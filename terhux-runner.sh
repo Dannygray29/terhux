@@ -58,6 +58,7 @@ if [ "$status" = "SUCCESS" ]; then
     whoami) stdout=$(whoami) ;;
     date) stdout=$(date) ;;
     termux-version) stdout=$(termux-info 2>&1 | head -20); exit_code=$? ;;
+    netboost-diagnose) cd "$HOME/netboost" 2>/dev/null || { status=ERROR; exit_code=1; stderr="NetBoost directory is missing."; }; if [ "$status" = "SUCCESS" ]; then stdout=$(printf "NODE="; node --version; printf "NPM="; npm --version; printf "JAVA="; (java -version 2>&1 | head -1 || true); printf "CAP="; (npx cap --version 2>&1 || true); printf "ANDROID_DIR="; [ -d android ] && echo yes || echo no; printf "PACKAGE_ANDROID="; node -e "const p=require('./package.json'); console.log(p.dependencies?.['@capacitor/android']||'missing')"; printf "BUILD_CONFIG="; ls vite.config.* tsconfig*.json 2>&1); exit_code=0; fi ;;
     netboost-build) if [ -x "$HOME/netboost/node_modules/.bin/vite" ]; then cd "$HOME/netboost" && npm run build; exit_code=$?; else status=ERROR; exit_code=1; stderr="NetBoost dependencies are not installed."; fi ;;
     netboost-cap-sync) if [ -x "$HOME/netboost/node_modules/.bin/capacitor" ]; then cd "$HOME/netboost" && npm run build >/tmp/netboost-build.log 2>&1 && npx cap sync; exit_code=$?; stdout=$(tail -80 /tmp/netboost-build.log 2>/dev/null); else status=ERROR; exit_code=1; stderr="Capacitor CLI is not installed."; fi ;;
     netboost-android-build) if [ -x "$HOME/netboost/android/gradlew" ]; then cd "$HOME/netboost/android" && ./gradlew assembleDebug; exit_code=$?; else status=ERROR; exit_code=1; stderr="Android project or Gradle wrapper is missing."; fi ;;
