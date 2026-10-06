@@ -13,34 +13,30 @@ valid_project() { [ -n "$project" ] && [[ "$project" =~ ^[A-Za-z0-9._-]+$ ]]; }
 project_dir="$HOME/$project"
 if [ "$status" = SUCCESS ]; then
 case "$action" in
-terhux-runner-version)
-  stdout="TERHUX_RUNNER_OK"
-  ;;
+terhux-runner-version) stdout="TERHUX_RUNNER_OK";;
 github-repo-rename)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   new_name=$(printf '%s\n' "$raw"|sed -n 's/^NEW_NAME=//p'|head -n1)
   [[ "$new_name" =~ ^[A-Za-z0-9._-]+$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid repository name."; }
-  [ "$status" = SUCCESS ] && { stdout=$(gh repo rename "$new_name" --repo "Dannygray29/$project" --yes 2>&1); exit_code=$?; }
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(gh repo rename "$new_name" --repo "Dannygray29/$project" --yes 2>&1); exit_code=$?; };;
+project-vercel-deploy)
+  valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npx vercel --prod --yes 2>&1); exit_code=$?; };;
 project-install)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install 2>&1); exit_code=$?; }
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install 2>&1); exit_code=$?; };;
 project-npm-install)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   package_name=$(printf '%s\n' "$raw"|sed -n 's/^PACKAGE=//p'|head -n1)
   [[ "$package_name" =~ ^@?[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?(@[A-Za-z0-9._-]+)?$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid package name."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install "$package_name" --save-dev 2>&1); exit_code=$?; }
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install "$package_name" --save-dev 2>&1); exit_code=$?; };;
 project-read-file)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac; [ -f "$target" ] || { status=BLOCKED; exit_code=1; stderr="File not found."; }; }
-  [ "$status" = SUCCESS ] && { stdout=$(cat "$target" 2>&1); exit_code=$?; }
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(cat "$target" 2>&1); exit_code=$?; };;
 project-replace)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  from_b64=$(printf '%s\n' "$raw"|sed -n 's/^FROM_B64=//p'|head -n1)
-  to_b64=$(printf '%s\n' "$raw"|sed -n 's/^TO_B64=//p'|head -n1)
+  from_b64=$(printf '%s\n' "$raw"|sed -n 's/^FROM_B64=//p'|head -n1); to_b64=$(printf '%s\n' "$raw"|sed -n 's/^TO_B64=//p'|head -n1)
   case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac
   [ -n "$from_b64" ] && [ -n "$to_b64" ] || { status=BLOCKED; exit_code=1; stderr="FROM_B64 and TO_B64 are required."; }
   [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; [ -f "$target" ] || { status=BLOCKED; exit_code=1; stderr="File not found."; }; }
@@ -48,36 +44,26 @@ project-replace)
 import sys
 p,old,new=sys.argv[1:]
 s=open(p).read()
-if s.count(old)!=1:
-    print("replacement target count is not exactly 1",file=sys.stderr); raise SystemExit(1)
+if s.count(old)!=1: print("replacement target count is not exactly 1",file=sys.stderr); raise SystemExit(1)
 open(p,"w").write(s.replace(old,new,1))
 PY
-  exit_code=$?; [ "$exit_code" -eq 0 ] || { status=ERROR; stderr="Replacement failed."; }; }
-  ;;
+  exit_code=$?; [ "$exit_code" -eq 0 ] || { status=ERROR; stderr="Replacement failed."; }; };;
 project-write-file)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   content_b64=$(printf '%s\n' "$raw"|sed -n 's/^CONTENT_B64=//p'|head -n1)
   case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac
   [ -n "$content_b64" ] || { status=BLOCKED; exit_code=1; stderr="CONTENT_B64 is required."; }
-  [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; mkdir -p "$(dirname "$target")"; printf '%s' "$content_b64" | base64 -d >"$target" 2>/dev/null || { status=ERROR; exit_code=1; stderr="Invalid base64 content."; }; }
-  ;;
+  [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; mkdir -p "$(dirname "$target")"; printf '%s' "$content_b64" | base64 -d >"$target" 2>/dev/null || { status=ERROR; exit_code=1; stderr="Invalid base64 content."; }; };;
 project-build)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run build 2>&1); exit_code=$?; }
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run build 2>&1); exit_code=$?; };;
 project-test)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm test 2>&1); exit_code=$?; }
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm test 2>&1); exit_code=$?; };;
 project-android)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run android 2>&1); exit_code=$?; }
-  ;;
-*)
-  status=BLOCKED
-  exit_code=1
-  stderr="Action is not on the Terhux core allowlist."
-  ;;
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run android 2>&1); exit_code=$?; };;
+*) status=BLOCKED; exit_code=1; stderr="Action is not on the Terhux core allowlist.";;
 esac
 fi
 [ "$exit_code" -eq 0 ] || [ "$status" = BLOCKED ] || status=ERROR
