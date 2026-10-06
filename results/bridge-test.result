@@ -2,11 +2,11 @@ TERHUX_RESULT_V1
 ID=bridge-test
 STATUS=ERROR
 EXIT_CODE=1
-WORKDIR=/data/data/com.termux/files/home/~
-TIME=1791284105
+WORKDIR=/data/data/com.termux/files/home
+TIME=1791284210
 STDOUT_BEGIN
 
 STDOUT_END
 STDERR_BEGIN
-WORKDIR does not exist: /data/data/com.termux/files/home/~
+
 STDERR_END
