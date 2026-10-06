@@ -1,5 +1,0 @@
-ACTION=file-write-b64
-PROJECT=greystudio
-PATH=next-env.d.ts
-CONTENT_B64=Ly8vIDxyZWZlcmVuY2UgdHlwZXM9Im5leHQiIC8+Ci8vLyA8cmVmZXJlbmNlIHR5cGVzPSJuZXh0L2ltYWdlLXR5cGVzL2dsb2JhbCIgLz4=
-APPROVED=true
