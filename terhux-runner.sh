@@ -22,12 +22,14 @@ ACTION=""
 PROJECT=""
 REL_PATH=""
 CONTENT=""
+CONTENT_B64=""
 APPROVED="false"
 
 ACTION=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^ACTION=//p' | head -n 1)
 PROJECT=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^PROJECT=//p' | head -n 1)
 REL_PATH=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^PATH=//p' | head -n 1)
 APPROVED=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^APPROVED=//p' | head -n 1)
+CONTENT_B64=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^CONTENT_B64=//p' | head -n 1)
 
 # Backward compatibility for the original simple commands.
 if [ -z "$ACTION" ]; then
@@ -131,6 +133,20 @@ if [ "$STATUS" = "SUCCESS" ]; then
                 EXIT_CODE=$?
                 [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
                 STDOUT="Wrote $REL_PATH"
+            fi
+            ;;
+        file-write-b64)
+            if [ "$SAFE_PATH" != "true" ]; then
+                STATUS="BLOCKED"; STDERR="A safe relative PATH is required."
+            elif [ -z "$CONTENT_B64" ]; then
+                STATUS="BLOCKED"; STDERR="CONTENT_B64 is required."
+            else
+                mkdir -p "$(dirname "$TARGET")"
+                printf '%s' "$CONTENT_B64" | base64 -d > "$TARGET" 2>/dev/null
+                EXIT_CODE=$?
+                [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
+                [ "$STATUS" = "ERROR" ] && STDERR="Invalid base64 content."
+                [ "$STATUS" != "ERROR" ] && STDOUT="Wrote $REL_PATH (base64)"
             fi
             ;;
         git-diff)
