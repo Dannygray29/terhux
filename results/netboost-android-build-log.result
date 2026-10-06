@@ -1,0 +1,31 @@
+TERHUX_RESULT_V1
+ID=netboost-android-build-log
+ACTION=netboost-android-build-log
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791304231
+STDOUT_BEGIN
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Settings file '/data/data/com.termux/files/home/netboost/android/settings.gradle' line: 5
+
+* What went wrong:
+A problem occurred evaluating settings 'android'.
+> Could not read script '/data/data/com.termux/files/home/netboost/android/capacitor.settings.gradle' as it does not exist.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 4s
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
