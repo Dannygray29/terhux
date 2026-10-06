@@ -31,6 +31,23 @@ project-read-file)
   [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac; [ -f "$target" ] || { status=BLOCKED; exit_code=1; stderr="File not found."; }; }
   [ "$status" = SUCCESS ] && { stdout=$(cat "$target" 2>&1); exit_code=$?; }
   ;;
+project-replace)
+  valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
+  from_b64=$(printf '%s\n' "$raw"|sed -n 's/^FROM_B64=//p'|head -n1)
+  to_b64=$(printf '%s\n' "$raw"|sed -n 's/^TO_B64=//p'|head -n1)
+  case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac
+  [ -n "$from_b64" ] && [ -n "$to_b64" ] || { status=BLOCKED; exit_code=1; stderr="FROM_B64 and TO_B64 are required."; }
+  [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; [ -f "$target" ] || { status=BLOCKED; exit_code=1; stderr="File not found."; }; }
+  [ "$status" = SUCCESS ] && { from=$(printf '%s' "$from_b64"|base64 -d); to=$(printf '%s' "$to_b64"|base64 -d); python - "$target" "$from" "$to" <<'PY'
+import sys
+p,old,new=sys.argv[1:]
+s=open(p).read()
+if s.count(old)!=1:
+    print("replacement target count is not exactly 1",file=sys.stderr); raise SystemExit(1)
+open(p,"w").write(s.replace(old,new,1))
+PY
+  exit_code=$?; [ "$exit_code" -eq 0 ] || { status=ERROR; stderr="Replacement failed."; }; }
+  ;;
 project-write-file)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   content_b64=$(printf '%s\n' "$raw"|sed -n 's/^CONTENT_B64=//p'|head -n1)
