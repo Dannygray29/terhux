@@ -60,8 +60,8 @@ if [ "$status" = "SUCCESS" ]; then
 fi
 
 if [ "$status" = "SUCCESS" ]; then
-  stdout_file="/tmp/terhux-$id.out"
-  stderr_file="/tmp/terhux-$id.err"
+  stdout_file="$PREFIX/tmp/terhux-$id.out"
+  stderr_file="$PREFIX/tmp/terhux-$id.err"
   : > "$stdout_file"
   : > "$stderr_file"
 
