@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=verify-indexhtml
+ACTION=file-read
+PROJECT=netboost
+PATH=index.html
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791293288
+STDOUT_BEGIN
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080c18"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><title>NetBoost</title></head><body><main><header><div><p>NETBOOST</p><h1>Connection Control</h1></div><span id="online">Checking...</span></header><section class="hero"><div><span id="connection">Detecting</span><strong id="type">-</strong></div><button id="scan">Run scan</button></section><section class="grid"><article><span>Latency</span><b id="latency">-</b><small>ms</small></article><article><span>Downlink</span><b id="downlink">-</b><small>Mbps</small></article><article><span>Network</span><b id="network">-</b><small>effective type</small></article><article><span>Data saver</span><b id="save">Off</b><small>browser hint</small></article></section><section class="panel"><h2>Optimization</h2><p>Safe browser-level optimization. NetBoost does not override carrier, radio or Android hardware limits.</p><label><input id="opt" type="checkbox"> Enable lightweight data-saving mode</label></section><section class="panel"><h2>Diagnostics</h2><pre id="log">Ready.</pre></section></main><script src="app.js"></script></body></html>
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
