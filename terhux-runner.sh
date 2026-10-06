@@ -337,7 +337,6 @@ BOOT_SCRIPT=$BOOT_TARGET"
                     EXTRACT_EXIT=$?
                 else
                     TMP_ARCHIVE=""
-                    rm -rf "$PROJECT_DIR"/*
                     cp -R "$REPO_DIR/netboost-template/." "$PROJECT_DIR/" 2>/dev/null
                     EXTRACT_EXIT=$?
                 fi
