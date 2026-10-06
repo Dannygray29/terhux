@@ -264,6 +264,31 @@ $(if [ -f "$PROJECT_DIR/package.json" ]; then cat "$PROJECT_DIR/package.json"; e
                 STDOUT="Push operation completed."
             fi
             ;;
+        github-repo-create)
+            REPO_NAME="$REL_PATH"
+            DESCRIPTION="$CONTENT"
+            if [ -z "$REPO_NAME" ]; then
+                STATUS="BLOCKED"; STDERR="PATH must contain the new GitHub repository name."
+            elif printf '%s' "$REPO_NAME" | grep -Eq '[^A-Za-z0-9._-]'; then
+                STATUS="BLOCKED"; STDERR="Repository name may contain only letters, numbers, dots, underscores, and hyphens."
+            elif gh repo view "$REPO_NAME" >/dev/null 2>&1; then
+                STATUS="SUCCESS"
+                STDOUT="REPOSITORY_EXISTS=true
+REPOSITORY=$REPO_NAME"
+            else
+                GH_OUTPUT=$(gh repo create "$REPO_NAME" --private --description "$DESCRIPTION" 2>&1)
+                EXIT_CODE=$?
+                if [ "$EXIT_CODE" -ne 0 ]; then
+                    STATUS="ERROR"
+                    STDERR="$GH_OUTPUT"
+                else
+                    STATUS="SUCCESS"
+                    STDOUT="REPOSITORY_CREATED=true
+REPOSITORY=$REPO_NAME
+$GH_OUTPUT"
+                fi
+            fi
+            ;;
         apk-prepare)
             APK_DIR="$REPO_DIR/apk"
             mkdir -p "$APK_DIR"
