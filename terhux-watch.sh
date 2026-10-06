@@ -9,6 +9,8 @@ GIT_RETRY="${TERHUX_GIT_RETRY:-5}"
 RUN_TIMEOUT="${TERHUX_RUN_TIMEOUT:-900}"
 mkdir -p "$COMMAND_DIR" "$RUNNING_DIR" "$PID_DIR" "$REPO_DIR/results"
 while true; do
+  mkdir -p "$COMMAND_DIR" "$RUNNING_DIR" "$PID_DIR" "$REPO_DIR/results" 2>/dev/null || { sleep "$INTERVAL"; continue; }
+  cd "$REPO_DIR" 2>/dev/null || { sleep "$INTERVAL"; continue; }
   # Never touch Git while a command is running; this prevents resets from deleting results.
   active=false
   for pidfile in "$PID_DIR"/*.pid; do
