@@ -33,6 +33,7 @@ function usage() {
   console.log("Usage:");
   console.log("  node terhux-ai-agent.js plan <project> <goal>");
   console.log("  node terhux-ai-agent.js run <project> <goal> [max-iterations]");
+  console.log("  node terhux-ai-agent.js run <project> <goal> --auto [max-iterations]");
   console.log("  node terhux-ai-agent.js status <run-id>");
   console.log("  node terhux-ai-agent.js stop <run-id>");
 }
@@ -121,10 +122,13 @@ async function askModel(prompt) {
   return plan;
 }
 
-function createPendingTask(taskId, project, plan, goal) {
+function createPendingTask(taskId, project, plan, goal, autoApprove) {
   const stateFile = path.join(taskDir, taskId + ".state");
   const pendingFile = path.join(taskDir, taskId + ".pending");
-  if (fs.existsSync(stateFile) || fs.existsSync(pendingFile)) {
+  const commandDir = path.join(repoDir, "commands");
+  fs.mkdirSync(commandDir, { recursive: true });
+
+  if (fs.existsSync(stateFile) || fs.existsSync(pendingFile) || fs.existsSync(path.join(commandDir, taskId + ".cmd"))) {
     throw new Error("Task already exists: " + taskId);
   }
 
@@ -133,27 +137,32 @@ function createPendingTask(taskId, project, plan, goal) {
     "PROJECT=" + project,
     "ACTION=" + plan.action,
     "STATUS=QUEUED",
-    "APPROVAL=PENDING",
+    "APPROVAL=" + (autoApprove ? "AUTO" : "PENDING"),
     "CREATED=" + Math.floor(Date.now() / 1000)
   ].join("\n") + "\n";
+
+  fs.writeFileSync(stateFile, state);
 
   const pending = [
     "ACTION=" + plan.action,
     "PROJECT=" + project,
     plan.path ? "PATH=" + plan.path : "",
     plan.content ? "CONTENT=" + plan.content : "",
-    "APPROVED=false"
+    "APPROVED=" + (autoApprove ? "true" : "false")
   ].filter(Boolean).join("\n") + "\n";
 
-  fs.writeFileSync(stateFile, state);
-  fs.writeFileSync(pendingFile, pending);
+  if (autoApprove) {
+    fs.writeFileSync(path.join(commandDir, taskId + ".cmd"), pending);
+  } else {
+    fs.writeFileSync(pendingFile, pending);
+  }
 
   const request = {
     id: taskId,
     project,
     goal,
     plan,
-    status: "PENDING_APPROVAL",
+    status: autoApprove ? "AUTO_APPROVED" : "PENDING_APPROVAL",
     created: new Date().toISOString()
   };
   fs.writeFileSync(path.join(inboxDir, taskId + ".json"), JSON.stringify(request, null, 2));
@@ -184,11 +193,12 @@ function readResult(taskId) {
   return result;
 }
 
-async function planOnce(project, goal, context, runId) {
+async function planOnce(project, goal, context, runId, autoApprove) {
   const prompt = [
     "Terhux run: " + runId,
     "Project: " + project,
     "Original goal: " + goal,
+    "Execution mode: " + (autoApprove ? "AUTONOMOUS" : "MANUAL APPROVAL"),
     "",
     context
   ].join("\n");
@@ -198,11 +208,11 @@ async function planOnce(project, goal, context, runId) {
 
   if (plan.done) return { plan, taskId: null };
 
-  createPendingTask(taskId, project, plan, goal);
+  createPendingTask(taskId, project, plan, goal, autoApprove);
   return { plan, taskId };
 }
 
-async function runAgent(project, goal, maxIterations) {
+async function runAgent(project, goal, maxIterations, autoApprove) {
   const runId = makeId("run");
   const limit = Math.max(1, Math.min(50, Number(maxIterations) || 10));
 
@@ -210,6 +220,7 @@ async function runAgent(project, goal, maxIterations) {
     ID: runId,
     PROJECT: project,
     STATUS: "PLANNING",
+    MODE: autoApprove ? "AUTO" : "MANUAL",
     GOAL: goal,
     ITERATION: 0,
     MAX_ITERATIONS: limit,
@@ -227,7 +238,7 @@ async function runAgent(project, goal, maxIterations) {
 
     let result;
     try {
-      result = await planOnce(project, goal, context, runId);
+      result = await planOnce(project, goal, context, runId, autoApprove);
     } catch (err) {
       writeRunState(runId, { STATUS: "FAILED", ERROR: err.message });
       return;
@@ -245,13 +256,17 @@ async function runAgent(project, goal, maxIterations) {
 
     const taskId = result.taskId;
     writeRunState(runId, {
-      STATUS: "WAITING_APPROVAL",
+      STATUS: autoApprove ? "EXECUTING" : "WAITING_APPROVAL",
       CURRENT_TASK: taskId,
       ACTION: result.plan.action
     });
 
-    console.log("AI proposed task: " + taskId);
-    console.log("Approval required: ./terhux-task.sh approve " + taskId);
+    if (!autoApprove) {
+      console.log("AI proposed task: " + taskId);
+      console.log("Approval required: ./terhux-task.sh approve " + taskId);
+    } else {
+      console.log("AI auto-approved task: " + taskId);
+    }
 
     while (true) {
       await sleep(Number(process.env.TERHUX_AI_POLL_SECONDS || 5) * 1000);
@@ -315,7 +330,7 @@ async function main() {
       console.log(JSON.stringify({ status: "DONE", plan }, null, 2));
       return;
     }
-    createPendingTask(taskId, project, plan, goal);
+    createPendingTask(taskId, project, plan, goal, false);
     console.log(JSON.stringify({ id: taskId, project, goal, plan, status: "PENDING_APPROVAL" }, null, 2));
     console.log("\nApproval required: ./terhux-task.sh approve " + taskId);
     return;
@@ -324,11 +339,18 @@ async function main() {
   if (cmd === "run") {
     const [project, ...rest] = args;
     if (!project || rest.length === 0) { usage(); process.exit(2); }
+
+    const autoIndex = rest.indexOf("--auto");
+    const autoApprove = autoIndex !== -1;
+    if (autoApprove) rest.splice(autoIndex, 1);
+
     const maybeLimit = rest[rest.length - 1];
     const hasLimit = /^\d+$/.test(maybeLimit);
     const maxIterations = hasLimit ? Number(maybeLimit) : 10;
     const goal = (hasLimit ? rest.slice(0, -1) : rest).join(" ");
-    await runAgent(project, goal, maxIterations);
+
+    if (!goal) { usage(); process.exit(2); }
+    await runAgent(project, goal, maxIterations, autoApprove);
     return;
   }
 
