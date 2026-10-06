@@ -115,3 +115,39 @@ Task states are persisted in `tasks/*.state`:
 A queued task can be cancelled before a worker claims it. Running or completed tasks are not cancelled by this simple CLI.
 
 The task manager is intentionally separate from command execution: it creates queue entries, while the multi-worker watcher schedules them.
+
+
+## Controller interface
+
+The controller wrapper provides a stable machine-facing entry point:
+
+```bash
+./terhux-controller.sh submit task-1 project-a project-inspect
+./terhux-controller.sh approve task-1
+./terhux-controller.sh status task-1
+./terhux-controller.sh list
+```
+
+A submitted task starts in `APPROVAL=PENDING`. It does not enter the worker queue until explicitly approved. This is the boundary an AI controller can use: the controller may plan and submit work, while approval remains a separate operation.
+
+## Multi-project AI workflow
+
+The intended architecture is:
+
+```text
+AI agent/controller
+       |
+       v
+Terhux controller
+       |
+       v
+task queue
+       |
+   +---+---+
+   |   |   |
+ worker worker worker
+   |   |   |
+   A   B   C
+```
+
+The same Terhux worker pool can therefore service any registered projects. GitHub's own automation model also supports multiple jobs running concurrently and explicit concurrency controls, which is the same scheduling principle Terhux applies locally on Termux. citeturn0search0turn0search2
