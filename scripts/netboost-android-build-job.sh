@@ -12,7 +12,7 @@ echo "STARTED $(date +%s)" > "$STATUSFILE"
 rm -f "$PIDFILE"
 cd "$ROOT/android" || { echo "ERROR 1 Android project missing" > "$STATUSFILE"; exit 1; }
 
-./gradlew assembleDebug > "$LOG" 2>&1
+timeout 1800 ./gradlew assembleDebug > "$LOG" 2>&1
 code=$?
 
 if [ "$code" -eq 0 ]; then
