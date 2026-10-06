@@ -1,0 +1,2 @@
+ACTION=whoami
+APPROVED=true
