@@ -7,8 +7,9 @@ const repoDir = path.join(process.env.HOME || "", "terhux", "repo");
 const inboxDir = path.join(repoDir, "ai-inbox");
 const outboxDir = path.join(repoDir, "ai-outbox");
 const taskDir = path.join(repoDir, "tasks");
+const runLockDir = path.join(taskDir, ".run-locks");
 
-for (const dir of [inboxDir, outboxDir, taskDir]) fs.mkdirSync(dir, { recursive: true });
+for (const dir of [inboxDir, outboxDir, taskDir, runLockDir]) fs.mkdirSync(dir, { recursive: true });
 
 const ALLOWED_ACTIONS = new Set([
   "project-inspect",
@@ -37,6 +38,7 @@ function usage() {
   console.log("  node terhux-ai-agent.js status <run-id>");
   console.log("  node terhux-ai-agent.js stop <run-id>");
   console.log("  node terhux-ai-agent.js resume <run-id>");
+  console.log("  node terhux-ai-agent.js recover");
 }
 
 function makeId(prefix) {
@@ -66,6 +68,105 @@ function writeRunState(runId, values) {
 
 function getRunState(runId) {
   return readKv(path.join(taskDir, runId + ".agent"));
+}
+
+function acquireRunLock(runId) {
+  const lock = path.join(runLockDir, runId);
+  try {
+    fs.mkdirSync(lock);
+    fs.writeFileSync(path.join(lock, "pid"), String(process.pid) + "\n");
+    return lock;
+  } catch (err) {
+    if (err.code === "EEXIST") return null;
+    throw err;
+  }
+}
+
+function releaseRunLock(lock) {
+  if (!lock) return;
+  try { fs.rmSync(lock, { recursive: true, force: true }); } catch {}
+}
+
+function taskFiles(taskId) {
+  return {
+    state: path.join(taskDir, taskId + ".state"),
+    pending: path.join(taskDir, taskId + ".pending"),
+    command: path.join(repoDir, "commands", taskId + ".cmd"),
+    running: path.join(repoDir, "commands", ".running", taskId + ".cmd"),
+    result: path.join(repoDir, "results", taskId + ".result")
+  };
+}
+
+function reconcileActiveTask(runState, context) {
+  const taskId = runState.CURRENT_TASK;
+  if (!taskId) return { type: "none", context };
+
+  const files = taskFiles(taskId);
+  const taskState = readKv(files.state);
+
+  if (taskState.STATUS === "REJECTED" || taskState.APPROVAL === "REJECTED") {
+    writeRunState(runState.ID, { STATUS: "FAILED", ERROR: "Task rejected: " + taskId });
+    return { type: "failed" };
+  }
+
+  if (taskState.STATUS === "CANCELLED") {
+    writeRunState(runState.ID, { STATUS: "FAILED", ERROR: "Task cancelled: " + taskId });
+    return { type: "failed" };
+  }
+
+  if (fs.existsSync(files.result)) {
+    const execution = readResult(taskId);
+    const status = execution?.STATUS || taskState.STATUS || "ERROR";
+    const nextContext = [
+      "Previous AI plan/action: " + (runState.ACTION || taskState.ACTION || "unknown"),
+      "",
+      "Execution status: " + status,
+      "Exit code: " + (execution?.EXIT_CODE || taskState.EXIT_CODE || "unknown"),
+      "",
+      "STDOUT:",
+      execution?.STDOUT || "(none)",
+      "",
+      "STDERR:",
+      execution?.STDERR || "(none)",
+      "",
+      "Evaluate the result against the original goal. If incomplete or failed, choose the safest next action. If complete, set done=true."
+    ].join("\n");
+    writeRunState(runState.ID, {
+      STATUS: "EVALUATING",
+      CONTEXT: nextContext,
+      CURRENT_TASK: ""
+    });
+    return { type: "completed", context: nextContext };
+  }
+
+  if (fs.existsSync(files.pending)) {
+    writeRunState(runState.ID, { STATUS: "WAITING_APPROVAL" });
+    return { type: "waiting-approval" };
+  }
+
+  if (fs.existsSync(files.command) || fs.existsSync(files.running)) {
+    writeRunState(runState.ID, { STATUS: "EXECUTING" });
+    return { type: "executing" };
+  }
+
+  if (taskState.STATUS === "QUEUED" || taskState.STATUS === "RUNNING" || taskState.STATUS === "EXECUTING") {
+    writeRunState(runState.ID, { STATUS: runState.MODE === "AUTO" ? "EXECUTING" : "WAITING_APPROVAL" });
+    return { type: "waiting" };
+  }
+
+  writeRunState(runState.ID, {
+    STATUS: "FAILED",
+    ERROR: "Active task has no result or queue artifact: " + taskId
+  });
+  return { type: "failed" };
+}
+
+function listRecoverableRuns() {
+  if (!fs.existsSync(taskDir)) return [];
+  return fs.readdirSync(taskDir)
+    .filter(name => name.endsWith(".agent"))
+    .map(name => getRunState(name.slice(0, -6)))
+    .filter(state => state.ID && ["PLANNING", "WAITING_APPROVAL", "EXECUTING", "EVALUATING"].includes(state.STATUS));
 }
 
 async function askModel(prompt) {
@@ -226,6 +327,12 @@ async function planOnce(project, goal, context, runId, autoApprove) {
 
 async function runAgent(project, goal, maxIterations, autoApprove, existingRunId = null) {
   const runId = existingRunId || makeId("run");
+  const runLock = acquireRunLock(runId);
+  if (!runLock) {
+    console.log("Run already active: " + runId);
+    return;
+  }
+  try {
   const existing = existingRunId ? getRunState(runId) : {};
   if (existingRunId && !existing.ID) throw new Error("Run not found: " + runId);
   if (existingRunId && existing.STATUS === "DONE") {
@@ -257,6 +364,12 @@ async function runAgent(project, goal, maxIterations, autoApprove, existingRunId
   }
 
   let context = existing.CONTEXT || "No action has been taken yet. Inspect the project if necessary before changing anything.";
+
+  if (existingRunId && existing.CURRENT_TASK) {
+    const recovery = reconcileActiveTask(getRunState(runId), context);
+    if (recovery.type === "failed" || recovery.type === "waiting-approval" || recovery.type === "executing" || recovery.type === "waiting") return;
+    if (recovery.context) context = recovery.context;
+  }
 
   const startingIteration = existingRunId ? Number(existing.ITERATION || 0) : 0;
 
@@ -346,6 +459,9 @@ async function runAgent(project, goal, maxIterations, autoApprove, existingRunId
 
   writeRunState(runId, { STATUS: "FAILED", ERROR: "Maximum iterations reached." });
   console.log("Maximum iterations reached for " + runId);
+  } finally {
+    releaseRunLock(runLock);
+  }
 }
 
 async function main() {
@@ -401,10 +517,20 @@ async function main() {
       console.log("Run already completed: " + runId);
       return;
     }
-    if (state.STATUS === "EXECUTING" || state.STATUS === "WAITING_APPROVAL") {
-      console.log("Run has an active task: " + (state.CURRENT_TASK || "unknown"));
-    }
     await runAgent(state.PROJECT, state.GOAL, Number(state.MAX_ITERATIONS || 10), state.MODE === "AUTO", runId);
+    return;
+  }
+
+  if (cmd === "recover") {
+    const runs = listRecoverableRuns();
+    if (runs.length === 0) {
+      console.log("No recoverable AI runs found.");
+      return;
+    }
+    console.log("Recovering " + runs.length + " run(s)...");
+    await Promise.all(runs.map(state =>
+      runAgent(state.PROJECT, state.GOAL, Number(state.MAX_ITERATIONS || 10), state.MODE === "AUTO", state.ID)
+    ));
     return;
   }
 
