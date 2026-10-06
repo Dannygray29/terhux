@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=verify-manifestwebmanifest
+ACTION=file-read
+PROJECT=netboost
+PATH=manifest.webmanifest
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791293314
+STDOUT_BEGIN
+{"name":"NetBoost","short_name":"NetBoost","start_url":"./","display":"standalone","background_color":"#080c18","theme_color":"#0b1020","description":"Connection diagnostics and safe browser-level optimization."}
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
