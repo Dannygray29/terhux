@@ -1,0 +1,17 @@
+TERHUX_RESULT_V1
+ID=nb-check-capacitor.config.ts
+ACTION=file-read
+PROJECT=netboost
+PATH=capacitor.config.ts
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791298857
+STDOUT_BEGIN
+import type { CapacitorConfig } from "@capacitor/cli";
+const config: CapacitorConfig = { appId:"com.greyvona.netboost", appName:"NetBoost", webDir:"dist", loggingBehavior:"production" };
+export default config;
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
