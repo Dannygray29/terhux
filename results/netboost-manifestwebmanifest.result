@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=netboost-manifestwebmanifest
+ACTION=file-write-b64
+PROJECT=netboost
+PATH=manifest.webmanifest
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791293050
+STDOUT_BEGIN
+Wrote manifest.webmanifest
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
