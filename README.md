@@ -32,7 +32,7 @@ File paths are restricted to registered project directories and must be relative
 
 - system: `pwd`, `whoami`, `date`, `termux-version`, `git-version`
 - development: `node-version`, `npm-version`, `project-list`
-- Git: `git-status`, `git-branch`, `git-diff`
+- Git: `git-status`, `git-branch`, `git-diff`, `git-add`, `git-commit`, `git-push`
 - files: `file-list`, `file-read`, `file-write`
 - project: `npm-test`, `npm-build`
 
