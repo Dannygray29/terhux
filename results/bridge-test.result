@@ -3,7 +3,7 @@ ID=bridge-test
 STATUS=ERROR
 EXIT_CODE=1
 WORKDIR=/data/data/com.termux/files/home/~
-TIME=1791282876
+TIME=1791284105
 STDOUT_BEGIN
 
 STDOUT_END
