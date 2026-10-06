@@ -8,14 +8,20 @@ ChatGPT/GitHub → `commands/` → Terhux background service → Termux → `res
 
 ## Command format
 
-Structured commands use a small allowlisted protocol:
-
 ```
-ACTION=node-version
+ACTION=git-status
+PROJECT=void
 APPROVED=true
 ```
 
 No arbitrary shell commands are executed.
+
+## Registered projects
+
+- `terhux` → `~/terhux/repo`
+- `void` → `~/void`
+
+A project must be explicitly registered before Terhux can target it.
 
 ## Safe actions
 
@@ -26,13 +32,10 @@ No arbitrary shell commands are executed.
 - `git-version`
 - `node-version`
 - `npm-version`
-- `git-status`
+- `project-list`
+- `git-status` + PROJECT
+- `git-branch` + PROJECT
+- `npm-test` + PROJECT
+- `npm-build` + PROJECT
 
-## Folders
-
-- `commands/` — commands waiting for Terhux
-- `results/` — command results
-- `status.txt` — bridge status
-- `terhux-runner.sh` — command processor
-
-The bridge is designed to be expanded with additional explicitly allowlisted actions and stronger approval/signing later.
+The bridge is designed to be expanded with additional explicitly allowlisted projects and actions.
