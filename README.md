@@ -151,3 +151,19 @@ task queue
 ```
 
 The same Terhux worker pool can therefore service any registered projects. GitHub's own automation model also supports multiple jobs running concurrently and explicit concurrency controls, which is the same scheduling principle Terhux applies locally on Termux. citeturn0search0turn0search2
+
+
+## GitHub repository creation
+
+Terhux can create a new private GitHub repository through the authenticated GitHub CLI on the Termux device. The action is allowlisted and does not provide arbitrary shell execution.
+
+Command format:
+
+```text
+ACTION=github-repo-create
+PATH=GreyStudio
+CONTENT=GreyStudio AI content production platform
+APPROVED=true
+```
+
+The Termux device must have GitHub CLI authenticated. If the repository already exists, Terhux reports that instead of recreating it.
