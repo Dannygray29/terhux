@@ -1,97 +1,72 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Stop if a command fails unexpectedly
-set -u
-
-# Terhux repository
 REPO_DIR="$HOME/terhux/repo"
-
-# GitHub command queue
 COMMAND_DIR="$REPO_DIR/commands"
-
-# GitHub results folder
 RESULT_DIR="$REPO_DIR/results"
-
-# Make sure required folders exist
-mkdir -p "$COMMAND_DIR" "$RESULT_DIR"
 
 echo "=========================================="
 echo "TERHUX COMMAND RUNNER"
 echo "=========================================="
-echo "Watching GitHub command queue..."
-echo ""
 
-# Check for a command file
-COMMAND_FILE=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | head -n 1)
+# Find the oldest pending command
+COMMAND_FILE=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort | head -n 1)
 
-# Nothing to execute
+# Nothing to process
 if [ -z "$COMMAND_FILE" ]; then
     echo "No command found."
     exit 0
 fi
 
-# Read the command
+COMMAND_ID=$(basename "$COMMAND_FILE" .cmd)
 COMMAND=$(cat "$COMMAND_FILE")
 
-echo "Command received:"
-echo "$COMMAND"
 echo ""
+echo "Command ID: $COMMAND_ID"
+echo "Command: $COMMAND"
 
-# Generate a result filename
-RESULT_FILE="$RESULT_DIR/$(basename "$COMMAND_FILE" .cmd).result"
-
-# ==========================================
-# SAFETY ALLOWLIST
-# ==========================================
-
+# Safety allowlist
 case "$COMMAND" in
-
-    "pwd")
-        OUTPUT=$(pwd 2>&1)
+    pwd)
+        RESULT=$(pwd)
         ;;
-
-    "whoami")
-        OUTPUT=$(whoami 2>&1)
+    whoami)
+        RESULT=$(whoami)
         ;;
-
-    "date")
-        OUTPUT=$(date 2>&1)
+    date)
+        RESULT=$(date)
         ;;
-
-    "termux-version")
-        OUTPUT=$(termux-info 2>&1)
+    termux-version)
+        RESULT=$(termux-info 2>&1 | head -20)
         ;;
-
-    "git-version")
-        OUTPUT=$(git --version 2>&1)
+    git-version)
+        RESULT=$(git --version)
         ;;
-
     *)
-        OUTPUT="BLOCKED: Command is not on the Terhux safety allowlist."
+        RESULT="BLOCKED: Command is not on the Terhux safety allowlist."
         ;;
-
 esac
 
 # Save result
+RESULT_FILE="$RESULT_DIR/$COMMAND_ID.result"
+
 {
-    echo "Terhux execution result"
-    echo "======================="
-    echo "Command: $COMMAND"
-    echo "Time: $(date)"
+    echo "TERHUX RESULT"
+    echo "=============="
+    echo "ID: $COMMAND_ID"
+    echo "COMMAND: $COMMAND"
+    echo "TIME: $(date)"
     echo ""
-    echo "$OUTPUT"
+    echo "$RESULT"
 } > "$RESULT_FILE"
 
 # Remove processed command
 rm -f "$COMMAND_FILE"
 
-# Push result to GitHub
-cd "$REPO_DIR"
-
-git add results/
-git commit -m "Terhux: command result" >/dev/null 2>&1 || true
+# Send result back to GitHub
+git add commands results
+git commit -m "Terhux result: $COMMAND_ID" >/dev/null 2>&1 || true
 git push >/dev/null 2>&1 || true
 
 echo ""
-echo "✅ Command processed."
+echo "Command processed."
 echo "Result: $RESULT_FILE"
