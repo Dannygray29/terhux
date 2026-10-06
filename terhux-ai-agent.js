@@ -85,6 +85,7 @@ async function askModel(prompt) {
     "Allowed actions: project-inspect, file-read, file-write, file-write-b64, npm-test, npm-build, git-status, git-diff.",
     "Never request arbitrary shell commands, package-manager installs, credential access, or destructive operations.",
     "Keep file paths relative to the selected project and never use .. path traversal.",
+    "For generated or modified file contents, prefer file-write-b64. Put the complete UTF-8 file content in content; Terhux encodes it safely before queueing.",
     "Prefer inspection before modification and tests after modification.",
     "Only propose one next action at a time."
   ].join(" ");
@@ -143,11 +144,21 @@ function createPendingTask(taskId, project, plan, goal, autoApprove) {
 
   fs.writeFileSync(stateFile, state);
 
+  let queuedAction = plan.action;
+  let contentLine = "";
+
+  if ((plan.action === "file-write" || plan.action === "file-write-b64") && typeof plan.content === "string") {
+    queuedAction = "file-write-b64";
+    contentLine = "CONTENT_B64=" + Buffer.from(plan.content, "utf8").toString("base64");
+  } else if (plan.content) {
+    contentLine = "CONTENT=" + String(plan.content).replace(/\r?\n/g, " ");
+  }
+
   const pending = [
-    "ACTION=" + plan.action,
+    "ACTION=" + queuedAction,
     "PROJECT=" + project,
     plan.path ? "PATH=" + plan.path : "",
-    plan.content ? "CONTENT=" + plan.content : "",
+    contentLine,
     "APPROVED=" + (autoApprove ? "true" : "false")
   ].filter(Boolean).join("\n") + "\n";
 
