@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=netboost-verify-runtime
+ACTION=run
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=BLOCKED
+EXIT_CODE=0
+TIME=1791298625
+STDOUT_BEGIN
+
+STDOUT_END
+STDERR_BEGIN
+Action is not on the Terhux safety allowlist.
+STDERR_END
