@@ -42,3 +42,6 @@ There is still no arbitrary shell execution. File writes require explicit approv
 ## Result protocol
 
 Results now begin with `TERHUX_RESULT_V1`. Stable key/value fields report the command, project, status, approval and exit code. STDOUT and STDERR use explicit delimiters so a controller can parse results reliably.
+
+
+For multiline files, use `ACTION=file-write-b64` with `CONTENT_B64=<base64>`. This avoids newline/parsing problems in the command protocol.
