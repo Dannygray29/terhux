@@ -5,7 +5,6 @@ export interface NetworkSnapshot { connectionType:string;effectiveType:string|nu
 export type OptimizationKind="safe"|"manual";
 export interface OptimizationAction {id:string;title:string;reason:string;steps:string[];kind:OptimizationKind;priority:number;}
 export interface OptimizationPlan {score:number;summary:string;actions:OptimizationAction[];}
-
 export type OptimizationKind="safe"|"manual";
 export interface OptimizationAction {id:string;title:string;reason:string;steps:string[];kind:OptimizationKind;priority:number;}
 export interface OptimizationPlan {score:number;summary:string;actions:OptimizationAction[];}
