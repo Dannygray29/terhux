@@ -82,9 +82,31 @@ async function main() {
     status: "PENDING_APPROVAL",
     created: new Date().toISOString()
   };
+  const taskDir = path.join(repoDir, "tasks");
+  const commandDir = path.join(repoDir, "commands");
+  fs.mkdirSync(taskDir, { recursive: true });
+  fs.mkdirSync(commandDir, { recursive: true });
+  const state = [
+    "ID=" + requestId,
+    "PROJECT=" + project,
+    "ACTION=" + plan.action,
+    "STATUS=QUEUED",
+    "APPROVAL=PENDING",
+    "CREATED=" + Math.floor(Date.now() / 1000)
+  ].join("\\n") + "\\n";
+  const pending = [
+    "ACTION=" + plan.action,
+    "PROJECT=" + project,
+    plan.path ? "PATH=" + plan.path : "",
+    plan.content ? "CONTENT=" + plan.content : "",
+    "APPROVED=false"
+  ].filter(Boolean).join("\\n") + "\\n";
+  fs.writeFileSync(path.join(taskDir, requestId + ".state"), state);
+  fs.writeFileSync(path.join(taskDir, requestId + ".pending"), pending);
   fs.writeFileSync(path.join(inboxDir, requestId + ".json"), JSON.stringify(request, null, 2));
   fs.writeFileSync(path.join(outboxDir, requestId + ".json"), JSON.stringify(request, null, 2));
   console.log(JSON.stringify(request, null, 2));
+  console.log("\\nApproval required: ./terhux-task.sh approve " + requestId);
 }
 
 main().catch(err => {
