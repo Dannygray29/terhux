@@ -37,3 +37,8 @@ File paths are restricted to registered project directories and must be relative
 - project: `npm-test`, `npm-build`
 
 There is still no arbitrary shell execution. File writes require explicit approval and are confined to registered projects.
+
+
+## Result protocol
+
+Results now begin with `TERHUX_RESULT_V1`. Stable key/value fields report the command, project, status, approval and exit code. STDOUT and STDERR use explicit delimiters so a controller can parse results reliably.
