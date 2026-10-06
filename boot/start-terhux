@@ -1,0 +1,17 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+# Terhux automatic Android startup entrypoint.
+# Termux:Boot runs this script after Android boot when the Termux:Boot add-on is installed.
+REPO_DIR="$HOME/terhux/repo"
+LOG_DIR="$REPO_DIR/logs"
+mkdir -p "$LOG_DIR"
+
+# Give Android networking a moment to come up.
+sleep 15
+
+# Keep exactly one watcher alive.
+if pgrep -f "$REPO_DIR/terhux-watch.sh" >/dev/null 2>&1; then
+    exit 0
+fi
+
+nohup "$REPO_DIR/terhux-watch.sh" >>"$LOG_DIR/watch.log" 2>&1 &
