@@ -1,0 +1,50 @@
+TERHUX_RESULT_V1
+ID=nb-read-app
+ACTION=file-read
+PROJECT=netboost
+PATH=app.js
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791298066
+STDOUT_BEGIN
+const $=id=>document.getElementById(id);
+const logEl=$("log");
+const connection=()=>navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+function log(message){logEl.textContent+="\n"+new Date().toLocaleTimeString()+"  "+message;logEl.scrollTop=logEl.scrollHeight}
+function refresh(){
+ const c=connection();
+ $("online").textContent=navigator.onLine?"Online":"Offline";
+ $("connection").textContent=navigator.onLine?"Connected":"No connection";
+ $("type").textContent=c?.type||"Browser";
+ $("network").textContent=c?.effectiveType||"-";
+ $("downlink").textContent=typeof c?.downlink==="number"?c.downlink.toFixed(1):"-";
+ $("save").textContent=c?.saveData?"On":"Off";
+}
+async function scan(){
+ refresh(); $("scan").disabled=true; log("Starting connection scan...");
+ if(!navigator.onLine){$("latency").textContent="-";log("Device is offline.");$("scan").disabled=false;return}
+ const url="./?netboost_scan="+Date.now(); const start=performance.now();
+ try{
+  const response=await fetch(url,{cache:"no-store",credentials:"same-origin"});
+  const ms=Math.max(0,Math.round(performance.now()-start));
+  $("latency").textContent=ms;
+  log("Network round-trip: "+ms+" ms; HTTP "+response.status);
+  if(ms<80)log("Latency: excellent.");
+  else if(ms<180)log("Latency: acceptable.");
+  else log("Latency: high; carrier/Wi-Fi conditions may be limiting.");
+ }catch(error){$("latency").textContent="-";log("Network test failed: "+error.message)}
+ $("scan").disabled=false;
+}
+$("scan").onclick=scan;
+$("opt").onchange=e=>{localStorage.setItem("netboost-data-save",e.target.checked?"1":"0");log(e.target.checked?"Data-saving preference enabled.":"Data-saving preference disabled.")};
+$("opt").checked=localStorage.getItem("netboost-data-save")==="1";
+refresh();
+addEventListener("online",()=>{refresh();log("Connection restored.")});
+addEventListener("offline",()=>{refresh();log("Device went offline.")});
+const c=connection(); c?.addEventListener?.("change",()=>{refresh();log("Network information changed.")});
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").then(()=>log("Offline shell ready.")).catch(()=>log("Offline shell unavailable."));
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
