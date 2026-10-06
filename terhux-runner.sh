@@ -59,7 +59,7 @@ if [ "$status" = "SUCCESS" ]; then
     date) stdout=$(date) ;;
     termux-version) stdout=$(termux-info 2>&1 | head -20); exit_code=$? ;;
     netboost-build) if [ -x "$HOME/netboost/node_modules/.bin/vite" ]; then cd "$HOME/netboost" && npm run build; exit_code=$?; else status=ERROR; exit_code=1; stderr="NetBoost dependencies are not installed."; fi ;;
-    netboost-cap-sync) if [ -x "$HOME/netboost/node_modules/.bin/capacitor" ]; then cd "$HOME/netboost" && npm run cap:sync; exit_code=$?; else status=ERROR; exit_code=1; stderr="Capacitor CLI is not installed."; fi ;;
+    netboost-cap-sync) if [ -x "$HOME/netboost/node_modules/.bin/capacitor" ]; then cd "$HOME/netboost" && npm run build >/tmp/netboost-build.log 2>&1 && npx cap sync; exit_code=$?; stdout=$(tail -80 /tmp/netboost-build.log 2>/dev/null); else status=ERROR; exit_code=1; stderr="Capacitor CLI is not installed."; fi ;;
     netboost-android-build) if [ -x "$HOME/netboost/android/gradlew" ]; then cd "$HOME/netboost/android" && ./gradlew assembleDebug; exit_code=$?; else status=ERROR; exit_code=1; stderr="Android project or Gradle wrapper is missing."; fi ;;
     git-version) stdout=$(git --version); exit_code=$? ;;
     node-version) stdout=$(node --version 2>&1); exit_code=$? ;;
