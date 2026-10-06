@@ -55,15 +55,26 @@ PROJECT_DIR=""
 case "$PROJECT" in
     "") ;;
     *)
-        PROJECT_DIR=""
         REGISTRY="$REPO_DIR/projects.conf"
         if [ -f "$REGISTRY" ]; then
-            REGISTRY_PATH=$(sed -n "s#^$PROJECT|##p" "$REGISTRY" | head -n 1)
-            if [ -n "$REGISTRY_PATH" ]; then
-                PROJECT_DIR=$(eval "printf '%s' \"$REGISTRY_PATH\"")
-            fi
+            REGISTRY_PATH=$(awk -F'|' -v project="$PROJECT" '$1 == project {print $2; exit}' "$REGISTRY")
+            case "$REGISTRY_PATH" in
+                /data/*|/storage/*|/sdcard/*)
+                    PROJECT_DIR="$REGISTRY_PATH"
+                    ;;
+                "\$HOME"/*)
+                    PROJECT_DIR="$HOME/${REGISTRY_PATH#\$HOME/}"
+                    ;;
+                "")
+                    PROJECT_DIR=""
+                    ;;
+                *)
+                    STATUS="BLOCKED"
+                    STDERR="Invalid project registry path. Use an absolute path or \$HOME-relative path."
+                    ;;
+            esac
         fi
-        if [ -z "$PROJECT_DIR" ]; then
+        if [ -z "$PROJECT_DIR" ] && [ "$STATUS" = "SUCCESS" ]; then
             STATUS="BLOCKED"
             STDERR="Unknown project. Register it in projects.conf before use."
         fi
@@ -283,12 +294,12 @@ RESULT_FILE="$RESULT_DIR/$COMMAND_ID.result"
     echo "STATUS=$STATUS"
     echo "EXIT_CODE=$EXIT_CODE"
     echo "TIME=$(date +%s)"
-    echo "---STDOUT---"
-    echo "$STDOUT"
-    echo "---END_STDOUT---"
-    echo "---STDERR---"
-    echo "$STDERR"
-    echo "---END_STDERR---"
+    echo "STDOUT_BEGIN"
+    printf '%s\n' "$STDOUT"
+    echo "STDOUT_END"
+    echo "STDERR_BEGIN"
+    printf '%s\n' "$STDERR"
+    echo "STDERR_END"
 } > "$RESULT_FILE"
 
 rm -f "$COMMAND_FILE"
