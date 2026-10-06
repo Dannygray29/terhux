@@ -1,0 +1,3 @@
+Terhux is connected to GitHub.
+Status: ONLINE
+Bridge: INITIALIZING
