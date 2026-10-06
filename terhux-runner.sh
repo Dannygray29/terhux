@@ -37,5 +37,8 @@ fi
 rm -f "$command_file"
 git -C "$REPO_DIR" add commands results >/dev/null 2>&1||true
 git -C "$REPO_DIR" commit -m "Terhux result: $id" >/dev/null 2>&1||true
-git -C "$REPO_DIR" pull --rebase --autostash >/dev/null 2>&1||true
-git -C "$REPO_DIR" push >/dev/null 2>&1||true
+for attempt in 1 2 3 4 5; do
+  if git -C "$REPO_DIR" fetch origin main >/dev/null 2>&1 && git -C "$REPO_DIR" rebase origin/main >/dev/null 2>&1 && git -C "$REPO_DIR" push origin HEAD:main >/dev/null 2>&1; then break; fi
+  git -C "$REPO_DIR" rebase --abort >/dev/null 2>&1 || true
+  sleep 2
+done
