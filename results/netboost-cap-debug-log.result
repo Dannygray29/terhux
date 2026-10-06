@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=netboost-cap-debug-log
+ACTION=netboost-cap-debug-log
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791304358
+STDOUT_BEGIN
+
+STDOUT_END
+STDERR_BEGIN
+NetBoost debug log is missing.
+STDERR_END
