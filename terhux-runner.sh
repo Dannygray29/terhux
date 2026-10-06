@@ -85,6 +85,23 @@ if [ "$STATUS" = "SUCCESS" ]; then
             STDOUT=$(npm --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
         project-list)
             STDOUT=$(find "$HOME" -maxdepth 2 -type d -name .git -print 2>/dev/null | sed 's#/.git$##' | sort) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
+        project-inspect)
+            if [ -z "$PROJECT" ]; then
+                STATUS="BLOCKED"; STDERR="PROJECT is required."
+            elif [ ! -d "$PROJECT_DIR" ]; then
+                STATUS="ERROR"; EXIT_CODE=1; STDERR="Registered project directory does not exist: $PROJECT_DIR"
+            else
+                STDOUT="PROJECT=$PROJECT
+ROOT=$PROJECT_DIR
+BRANCH=$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null)
+GIT_STATUS:
+$(git -C "$PROJECT_DIR" status --short --branch 2>&1)
+FILES:
+$(find "$PROJECT_DIR" -maxdepth 2 -type f -not -path '*/.git/*' | sed "s#^$PROJECT_DIR/##" | sort | head -200)
+PACKAGE_JSON:
+$(if [ -f "$PROJECT_DIR/package.json" ]; then cat "$PROJECT_DIR/package.json"; else echo "NO_PACKAGE_JSON"; fi)"
+            fi
+            ;;
         git-status|git-branch|npm-test|npm-build)
             if [ -z "$PROJECT" ]; then
                 STATUS="BLOCKED"; STDERR="This action requires PROJECT=<registered project>."
