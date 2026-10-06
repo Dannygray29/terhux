@@ -85,6 +85,35 @@ if [ "$STATUS" = "SUCCESS" ]; then
             STDOUT=$(npm --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
         project-list)
             STDOUT=$(find "$HOME" -maxdepth 2 -type d -name .git -print 2>/dev/null | sed 's#/.git$##' | sort) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
+        project-check)
+            if [ -z "$PROJECT" ]; then
+                STATUS="BLOCKED"; STDERR="PROJECT is required."
+            elif [ ! -d "$PROJECT_DIR" ]; then
+                STATUS="ERROR"; EXIT_CODE=1; STDERR="Registered project directory does not exist: $PROJECT_DIR"
+            elif [ ! -f "$PROJECT_DIR/package.json" ]; then
+                STATUS="BLOCKED"; STDERR="No package.json in the selected project."
+            else
+                TEST_OUTPUT=$(cd "$PROJECT_DIR" && npm test 2>&1)
+                TEST_EXIT=$?
+                BUILD_OUTPUT=""
+                BUILD_EXIT=0
+                if [ "$TEST_EXIT" -eq 0 ]; then
+                    BUILD_OUTPUT=$(cd "$PROJECT_DIR" && npm run build 2>&1)
+                    BUILD_EXIT=$?
+                fi
+                STDOUT="TEST_EXIT_CODE=$TEST_EXIT
+---TEST---
+$TEST_OUTPUT
+---BUILD_EXIT_CODE=$BUILD_EXIT
+---BUILD---
+$BUILD_OUTPUT"
+                if [ "$TEST_EXIT" -ne 0 ]; then
+                    EXIT_CODE=$TEST_EXIT; STATUS="ERROR"; STDERR="npm test failed."
+                elif [ "$BUILD_EXIT" -ne 0 ]; then
+                    EXIT_CODE=$BUILD_EXIT; STATUS="ERROR"; STDERR="npm run build failed."
+                fi
+            fi
+            ;;
         project-inspect)
             if [ -z "$PROJECT" ]; then
                 STATUS="BLOCKED"; STDERR="PROJECT is required."
