@@ -8,8 +8,9 @@ const inboxDir = path.join(repoDir, "ai-inbox");
 const outboxDir = path.join(repoDir, "ai-outbox");
 const taskDir = path.join(repoDir, "tasks");
 const runLockDir = path.join(taskDir, ".run-locks");
+const projectLockDir = path.join(taskDir, ".project-locks");
 
-for (const dir of [inboxDir, outboxDir, taskDir, runLockDir]) fs.mkdirSync(dir, { recursive: true });
+for (const dir of [inboxDir, outboxDir, taskDir, runLockDir, projectLockDir]) fs.mkdirSync(dir, { recursive: true });
 
 const ALLOWED_ACTIONS = new Set([
   "project-inspect",
@@ -84,6 +85,32 @@ function acquireRunLock(runId) {
 
 function releaseRunLock(lock) {
   if (!lock) return;
+  try { fs.rmSync(lock, { recursive: true, force: true }); } catch {}
+}
+
+function safeProjectLockName(project) {
+  return project.replace(/[^A-Za-z0-9._-]/g, "_");
+}
+
+function acquireProjectLock(project, runId) {
+  const lock = path.join(projectLockDir, safeProjectLockName(project));
+  try {
+    fs.mkdirSync(lock);
+    fs.writeFileSync(path.join(lock, "run"), runId + "\n");
+    fs.writeFileSync(path.join(lock, "pid"), String(process.pid) + "\n");
+    return lock;
+  } catch (err) {
+    if (err.code === "EEXIST") {
+      let owner = "unknown";
+      try { owner = fs.readFileSync(path.join(lock, "run"), "utf8").trim() || owner; } catch {}
+      return { busy: true, owner };
+    }
+    throw err;
+  }
+}
+
+function releaseProjectLock(lock) {
+  if (!lock || typeof lock !== "string") return;
   try { fs.rmSync(lock, { recursive: true, force: true }); } catch {}
 }
 
@@ -332,6 +359,14 @@ async function runAgent(project, goal, maxIterations, autoApprove, existingRunId
     console.log("Run already active: " + runId);
     return;
   }
+
+  const projectLock = acquireProjectLock(project, runId);
+  if (projectLock && projectLock.busy) {
+    console.log("Project is busy: " + project + " (run " + projectLock.owner + ")");
+    releaseRunLock(runLock);
+    return;
+  }
+
   try {
   const existing = existingRunId ? getRunState(runId) : {};
   if (existingRunId && !existing.ID) throw new Error("Run not found: " + runId);
@@ -460,6 +495,7 @@ async function runAgent(project, goal, maxIterations, autoApprove, existingRunId
   writeRunState(runId, { STATUS: "FAILED", ERROR: "Maximum iterations reached." });
   console.log("Maximum iterations reached for " + runId);
   } finally {
+    releaseProjectLock(projectLock);
     releaseRunLock(runLock);
   }
 }
