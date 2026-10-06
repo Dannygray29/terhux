@@ -1,2 +1,0 @@
-ACTION=whoami
-APPROVED=true
