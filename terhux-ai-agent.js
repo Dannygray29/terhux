@@ -36,6 +36,7 @@ function usage() {
   console.log("  node terhux-ai-agent.js run <project> <goal> --auto [max-iterations]");
   console.log("  node terhux-ai-agent.js status <run-id>");
   console.log("  node terhux-ai-agent.js stop <run-id>");
+  console.log("  node terhux-ai-agent.js resume <run-id>");
 }
 
 function makeId(prefix) {
@@ -223,29 +224,47 @@ async function planOnce(project, goal, context, runId, autoApprove) {
   return { plan, taskId };
 }
 
-async function runAgent(project, goal, maxIterations, autoApprove) {
-  const runId = makeId("run");
-  const limit = Math.max(1, Math.min(50, Number(maxIterations) || 10));
+async function runAgent(project, goal, maxIterations, autoApprove, existingRunId = null) {
+  const runId = existingRunId || makeId("run");
+  const existing = existingRunId ? getRunState(runId) : {};
+  if (existingRunId && !existing.ID) throw new Error("Run not found: " + runId);
+  if (existingRunId && existing.STATUS === "DONE") {
+    console.log("Run already completed: " + runId);
+    return;
+  }
 
-  writeRunState(runId, {
-    ID: runId,
-    PROJECT: project,
-    STATUS: "PLANNING",
-    MODE: autoApprove ? "AUTO" : "MANUAL",
-    GOAL: goal,
-    ITERATION: 0,
-    MAX_ITERATIONS: limit,
-    CURRENT_TASK: "",
-    CREATED: Math.floor(Date.now() / 1000)
-  });
+  const limit = existingRunId
+    ? Math.max(1, Math.min(50, Number(existing.MAX_ITERATIONS) || Number(maxIterations) || 10))
+    : Math.max(1, Math.min(50, Number(maxIterations) || 10));
 
-  let context = "No action has been taken yet. Inspect the project if necessary before changing anything.";
+  if (!existingRunId) {
+    writeRunState(runId, {
+      ID: runId,
+      PROJECT: project,
+      STATUS: "PLANNING",
+      MODE: autoApprove ? "AUTO" : "MANUAL",
+      GOAL: goal,
+      ITERATION: 0,
+      MAX_ITERATIONS: limit,
+      CURRENT_TASK: "",
+      CREATED: Math.floor(Date.now() / 1000)
+    });
+  } else {
+    project = existing.PROJECT;
+    goal = existing.GOAL;
+    autoApprove = existing.MODE === "AUTO";
+    writeRunState(runId, { STATUS: "PLANNING", ERROR: "" });
+  }
 
-  for (let iteration = 1; iteration <= limit; iteration++) {
+  let context = existing.CONTEXT || "No action has been taken yet. Inspect the project if necessary before changing anything.";
+
+  const startingIteration = existingRunId ? Number(existing.ITERATION || 0) : 0;
+
+  for (let iteration = startingIteration + 1; iteration <= limit; iteration++) {
     const state = getRunState(runId);
     if (state.STATUS === "STOPPED") return;
 
-    writeRunState(runId, { STATUS: "PLANNING", ITERATION: iteration });
+    writeRunState(runId, { STATUS: "PLANNING", ITERATION: iteration, CONTEXT: context });
 
     let result;
     try {
@@ -319,6 +338,7 @@ async function runAgent(project, goal, maxIterations, autoApprove) {
         "",
         "Evaluate the result against the original goal. If incomplete or failed, choose the safest next action. If complete, set done=true."
       ].join("\n");
+      writeRunState(runId, { CONTEXT: context, STATUS: "EVALUATING" });
 
       break;
     }
@@ -369,6 +389,22 @@ async function main() {
     const runId = args[0];
     if (!runId) { usage(); process.exit(2); }
     console.log(JSON.stringify(getRunState(runId), null, 2));
+    return;
+  }
+
+  if (cmd === "resume") {
+    const runId = args[0];
+    if (!runId) { usage(); process.exit(2); }
+    const state = getRunState(runId);
+    if (!state.ID) { console.error("Run not found: " + runId); process.exit(1); }
+    if (state.STATUS === "DONE") {
+      console.log("Run already completed: " + runId);
+      return;
+    }
+    if (state.STATUS === "EXECUTING" || state.STATUS === "WAITING_APPROVAL") {
+      console.log("Run has an active task: " + (state.CURRENT_TASK || "unknown"));
+    }
+    await runAgent(state.PROJECT, state.GOAL, Number(state.MAX_ITERATIONS || 10), state.MODE === "AUTO", runId);
     return;
   }
 
