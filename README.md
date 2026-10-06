@@ -2,40 +2,38 @@
 
 GitHub → Termux command bridge.
 
-## Flow
-
-ChatGPT/GitHub → `commands/` → Terhux background service → Termux → `results/`
-
 ## Command format
 
 ```
-ACTION=git-status
+ACTION=file-read
 PROJECT=void
+PATH=package.json
 APPROVED=true
 ```
 
-No arbitrary shell commands are executed.
+For a write:
+
+```
+ACTION=file-write
+PROJECT=void
+PATH=src/example.txt
+CONTENT=hello
+APPROVED=true
+```
+
+File paths are restricted to registered project directories and must be relative. Parent-directory traversal is blocked.
 
 ## Registered projects
 
 - `terhux` → `~/terhux/repo`
 - `void` → `~/void`
 
-A project must be explicitly registered before Terhux can target it.
-
 ## Safe actions
 
-- `pwd`
-- `whoami`
-- `date`
-- `termux-version`
-- `git-version`
-- `node-version`
-- `npm-version`
-- `project-list`
-- `git-status` + PROJECT
-- `git-branch` + PROJECT
-- `npm-test` + PROJECT
-- `npm-build` + PROJECT
+- system: `pwd`, `whoami`, `date`, `termux-version`, `git-version`
+- development: `node-version`, `npm-version`, `project-list`
+- Git: `git-status`, `git-branch`, `git-diff`
+- files: `file-list`, `file-read`, `file-write`
+- project: `npm-test`, `npm-build`
 
-The bridge is designed to be expanded with additional explicitly allowlisted projects and actions.
+There is still no arbitrary shell execution. File writes require explicit approval and are confined to registered projects.
