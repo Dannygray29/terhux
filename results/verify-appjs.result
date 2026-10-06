@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=verify-appjs
+ACTION=file-read
+PROJECT=netboost
+PATH=app.js
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791293302
+STDOUT_BEGIN
+const $=id=>document.getElementById(id);const logEl=$("log");function log(s){logEl.textContent+="\n"+new Date().toLocaleTimeString()+"  "+s}function conn(){return navigator.connection||navigator.mozConnection||navigator.webkitConnection}function refresh(){const c=conn();$("online").textContent=navigator.onLine?"Online":"Offline";$("connection").textContent=navigator.onLine?"Connected":"No connection";$("type").textContent=c?.type||"Browser";$("network").textContent=c?.effectiveType||"-";$("downlink").textContent=typeof c?.downlink==="number"?c.downlink.toFixed(1):"-";$("save").textContent=c?.saveData?"On":"Off"}async function scan(){refresh();$("scan").disabled=true;log("Starting connection scan...");const t=performance.now();try{const r=await fetch("data:text/plain,netboost",{cache:"no-store"});const ms=Math.round(performance.now()-t);$("latency").textContent=ms;log("Latency test: "+ms+" ms; status "+r.status)}catch(e){$("latency").textContent="-";log("Latency test failed: "+e.message)}$("scan").disabled=false}$("scan").onclick=scan;$("opt").onchange=e=>{localStorage.setItem("netboost-data-save",e.target.checked?"1":"0");log(e.target.checked?"Safe data-saving preference enabled.":"Safe data-saving preference disabled.")};$("opt").checked=localStorage.getItem("netboost-data-save")==="1";refresh();addEventListener("online",refresh);addEventListener("offline",refresh);if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").then(()=>log("Offline shell ready.")).catch(()=>log("Service worker unavailable."));
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
