@@ -15,7 +15,7 @@ while true; do
   # GitHub/network outages must never stop the bridge.
   git_ok=false
   for attempt in $(seq 1 "$GIT_RETRY"); do
-    if git -C "$REPO_DIR" pull --rebase --autostash >/dev/null 2>&1; then
+    if git -C "$REPO_DIR" fetch origin main >/dev/null 2>&1 && git -C "$REPO_DIR" reset --hard origin/main >/dev/null 2>&1; then
       git_ok=true
       break
     fi
