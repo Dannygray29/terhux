@@ -1,0 +1,24 @@
+TERHUX_RESULT_V1
+ID=netboost-build-20261006-3
+ACTION=project-build
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791314592
+STDOUT_BEGIN
+
+> netboost@0.1.0 build
+> tsc -b && vite build
+
+src/main.tsx(4,553): error TS2345: Argument of type 'number | null | undefined' is not assignable to parameter of type 'number | null'.
+  Type 'undefined' is not assignable to type 'number | null'.
+src/main.tsx(4,696): error TS2345: Argument of type 'number | null | undefined' is not assignable to parameter of type 'number | null'.
+  Type 'undefined' is not assignable to type 'number | null'.
+src/types/network.ts(5,13): error TS2300: Duplicate identifier 'OptimizationKind'.
+src/types/network.ts(8,13): error TS2300: Duplicate identifier 'OptimizationKind'.
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
