@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=netboost-android-build-cancel
+ACTION=netboost-android-build-cancel
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791303617
+STDOUT_BEGIN
+Requested termination of the NetBoost Android build job.
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
