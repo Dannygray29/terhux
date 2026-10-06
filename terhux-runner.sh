@@ -329,14 +329,21 @@ BOOT_SCRIPT=$BOOT_TARGET"
         netboost-bootstrap)
             if [ -z "$PROJECT_DIR" ]; then
                 STATUS="BLOCKED"; STDERR="PROJECT must be registered before bootstrap."
-            elif [ -z "$CONTENT_B64" ]; then
-                STATUS="BLOCKED"; STDERR="CONTENT_B64 is required."
             else
                 mkdir -p "$PROJECT_DIR"
-                TMP_ARCHIVE="$REPO_DIR/.netboost-bootstrap-$COMMAND_ID.tar.gz"
-                if ! printf "%s" "$CONTENT_B64" | base64 -d > "$TMP_ARCHIVE" 2>/dev/null; then
+                if [ -n "$CONTENT_B64" ]; then
+                    TMP_ARCHIVE="$REPO_DIR/.netboost-bootstrap-$COMMAND_ID.tar.gz"
+                    printf "%s" "$CONTENT_B64" | base64 -d > "$TMP_ARCHIVE" 2>/dev/null
+                    EXTRACT_EXIT=$?
+                else
+                    TMP_ARCHIVE=""
+                    rm -rf "$PROJECT_DIR"/*
+                    cp -R "$REPO_DIR/netboost-template/." "$PROJECT_DIR/" 2>/dev/null
+                    EXTRACT_EXIT=$?
+                fi
+                if [ "$EXTRACT_EXIT" -ne 0 ]; then
                     STATUS="ERROR"; EXIT_CODE=1; STDERR="Invalid bootstrap archive."
-                elif ! tar -xzf "$TMP_ARCHIVE" -C "$PROJECT_DIR" --strip-components=1 2>/dev/null; then
+                elif [ -n "$TMP_ARCHIVE" ] && ! tar -xzf "$TMP_ARCHIVE" -C "$PROJECT_DIR" --strip-components=1 2>/dev/null; then
                     STATUS="ERROR"; EXIT_CODE=1; STDERR="Could not extract the NetBoost project archive."
                 else
                     cd "$PROJECT_DIR" || exit 1
