@@ -16,6 +16,12 @@ case "$action" in
 terhux-runner-version)
   stdout="TERHUX_RUNNER_OK"
   ;;
+github-repo-rename)
+  valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
+  new_name=$(printf '%s\n' "$raw"|sed -n 's/^NEW_NAME=//p'|head -n1)
+  [[ "$new_name" =~ ^[A-Za-z0-9._-]+$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid repository name."; }
+  [ "$status" = SUCCESS ] && { stdout=$(gh repo rename "$new_name" --repo "Dannygray29/$project" --yes 2>&1); exit_code=$?; }
+  ;;
 project-install)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install 2>&1); exit_code=$?; }
