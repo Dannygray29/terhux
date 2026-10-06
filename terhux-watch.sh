@@ -3,6 +3,8 @@
 # Terhux repository
 REPO_DIR="$HOME/terhux/repo"
 INTERVAL="${TERHUX_INTERVAL:-10}"
+LOG_DIR="$REPO_DIR/logs"
+mkdir -p "$LOG_DIR"
 MAX_WORKERS="${TERHUX_WORKERS:-3}"
 AUTO_RECOVER="${TERHUX_AI_AUTO_RECOVER:-1}"
 
@@ -26,6 +28,9 @@ while true; do
     cd "$REPO_DIR" || exit 1
 
     git pull --quiet --rebase 2>/dev/null || true
+
+    # Keep the watcher's own scripts current from GitHub.
+    chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
 
     if [ "$AUTO_RECOVER" = "1" ] && [ "$(ai_recovery_count)" -eq 0 ]; then
         nohup node "$REPO_DIR/terhux-ai-agent.js" recover >/dev/null 2>&1 &
