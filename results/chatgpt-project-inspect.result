@@ -1,0 +1,60 @@
+TERHUX_RESULT_V1
+ID=chatgpt-project-inspect
+ACTION=project-inspect
+PROJECT=void
+PATH=
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791269356
+---STDOUT---
+PROJECT=void
+ROOT=/data/data/com.termux/files/home/void
+BRANCH=main
+GIT_STATUS:
+## main...origin/main
+FILES:
+.gitignore
+README.md
+eslint.config.mjs
+next-env.d.ts
+next.config.ts
+package.json
+postcss.config.mjs
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+tsconfig.json
+PACKAGE_JSON:
+{
+  "name": "void",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "next": "16.3.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.8",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+---END_STDOUT---
+---STDERR---
+
+---END_STDERR---
