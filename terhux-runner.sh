@@ -18,19 +18,19 @@ terhux-runner-version)
   ;;
 project-install)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { cd "$project_dir" && npm install 2>&1; exit_code=$?; }
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install 2>&1); exit_code=$?; }
   ;;
 project-build)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { cd "$project_dir" && npm run build 2>&1; exit_code=$?; }
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run build 2>&1); exit_code=$?; }
   ;;
 project-test)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { cd "$project_dir" && npm test 2>&1; exit_code=$?; }
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm test 2>&1); exit_code=$?; }
   ;;
 project-android)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { cd "$project_dir" && npm run android 2>&1; exit_code=$?; }
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run android 2>&1); exit_code=$?; }
   ;;
 *)
   status=BLOCKED
