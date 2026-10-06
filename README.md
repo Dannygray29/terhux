@@ -53,3 +53,45 @@ Use `project-inspect` before changing a project. It reports the registered root,
 
 
 `project-check` runs `npm test` and, only when tests pass, runs `npm run build`. A failure is returned with its exit code and captured output so the controller can decide the next change.
+
+
+## Multi-project multitasking
+
+Terhux now supports concurrent command workers.
+
+- Default concurrency: **3 workers**
+- Override with `TERHUX_WORKERS=N`
+- Different registered projects can run at the same time.
+- Tasks targeting the same project are serialized with a project lock to prevent conflicting file/Git operations.
+- Commands are atomically claimed into `commands/.running/`, preventing two workers from processing the same task.
+- GitHub result synchronization is protected by a global sync lock so concurrent workers do not race on Git.
+- The existing approval gate and action allowlist remain active for every worker.
+- There is still **no arbitrary shell execution**.
+
+### Example
+
+Three queued commands can run together:
+
+```text
+worker 1 → PROJECT=void       → npm-test
+worker 2 → PROJECT=terhux     → project-inspect
+worker 3 → PROJECT=greystudio → file-read
+```
+
+If two tasks target `void`, they wait for the `void` project lock instead of modifying the project simultaneously.
+
+### Worker control
+
+Run the watcher normally:
+
+```bash
+./terhux-watch.sh
+```
+
+Use four workers when the phone can handle it:
+
+```bash
+TERHUX_WORKERS=4 ./terhux-watch.sh
+```
+
+For a phone, the default of 3 is intentionally conservative. Build/test tasks can consume substantially more CPU and memory than inspection or file operations.
