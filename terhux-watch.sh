@@ -11,10 +11,14 @@ while true; do
   cd "$REPO_DIR" 2>/dev/null || { sleep "$INTERVAL"; continue; }
 
   # Sync GitHub. Keep local result commits; never hard-reset.
-  git pull --rebase --autostash origin main >/dev/null 2>&1 || {
+  if ! git pull --rebase --autostash origin main >/dev/null 2>&1; then
+    # The bridge must recover from stale local state instead of going offline.
+    git rebase --abort >/dev/null 2>&1 || true
+    git merge --abort >/dev/null 2>&1 || true
+    git reset --hard origin/main >/dev/null 2>&1 || true
     sleep "$INTERVAL"
     continue
-  }
+  fi
 
   command_file=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name '*.cmd' | sort | head -n1)
 
