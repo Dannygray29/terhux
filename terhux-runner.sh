@@ -60,11 +60,25 @@ if [ "$status" = "SUCCESS" ]; then
 fi
 
 if [ "$status" = "SUCCESS" ]; then
-  stdout=$(cd "$workdir" && bash -lc "$command" 2>"/tmp/terhux-$id.err")
-  exit_code=$?
-  stderr=$(cat "/tmp/terhux-$id.err" 2>/dev/null)
-  rm -f "/tmp/terhux-$id.err"
-  [ "$exit_code" -eq 0 ] || status=ERROR
+  stdout_file="/tmp/terhux-$id.out"
+  stderr_file="/tmp/terhux-$id.err"
+  : > "$stdout_file"
+  : > "$stderr_file"
+
+  cd "$workdir" 2>"$stderr_file" || {
+    status=ERROR
+    exit_code=$?
+  }
+
+  if [ "$status" = "SUCCESS" ]; then
+    bash -c "$command" >"$stdout_file" 2>"$stderr_file"
+    exit_code=$?
+    [ "$exit_code" -eq 0 ] || status=ERROR
+  fi
+
+  stdout=$(cat "$stdout_file" 2>/dev/null)
+  stderr=$(cat "$stderr_file" 2>/dev/null)
+  rm -f "$stdout_file" "$stderr_file"
 fi
 
 {
