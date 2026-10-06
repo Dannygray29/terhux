@@ -20,6 +20,12 @@ project-install)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install 2>&1); exit_code=$?; }
   ;;
+project-npm-install)
+  valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
+  package_name=$(printf '%s\n' "$raw"|sed -n 's/^PACKAGE=//p'|head -n1)
+  [[ "$package_name" =~ ^@?[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?(@[A-Za-z0-9._-]+)?$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid package name."; }
+  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install "$package_name" --save-dev 2>&1); exit_code=$?; }
+  ;;
 project-build)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run build 2>&1); exit_code=$?; }
