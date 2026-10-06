@@ -1,0 +1,21 @@
+TERHUX_RESULT_V1
+ID=nb-read-readme
+ACTION=file-read
+PROJECT=netboost
+PATH=README.md
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791298119
+STDOUT_BEGIN
+# NetBoost
+
+Mobile-first connection diagnostics and safe browser-level optimization.
+
+NetBoost reports browser-visible network information, measures same-origin round-trip latency, supports an offline shell, and stores the data-saving preference locally.
+
+NetBoost cannot increase carrier signal strength, bypass data caps, override Android radio limits, or create bandwidth unavailable from the network.
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
