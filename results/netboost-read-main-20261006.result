@@ -6,7 +6,7 @@ PATH=src/main.tsx
 APPROVED=true
 STATUS=SUCCESS
 EXIT_CODE=0
-TIME=1791315074
+TIME=1791315075
 STDOUT_BEGIN
 import React,{useEffect,useState}from"react";import{createRoot}from"react-dom/client";import{Activity,ChevronRight,Clock3,Gauge,History as HistoryIcon,Info,Network,RefreshCw,Settings,ShieldCheck,Zap}from"lucide-react";import{getNetworkSnapshot,runMeasurement}from"./engine/measure";import{diagnose}from"./engine/diagnostics";import{buildOptimizationPlan}from"./engine/optimizer";import{clearHistory,loadHistory,saveResult}from"./storage/history";import type{NetworkSnapshot,TestResult}from"./types/network";import"./styles.css";
 const fmt=(v:number|null,s=" ms")=>v==null?"—":`${Math.round(v)}${s}`;
