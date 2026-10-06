@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=nb-src-vite.config.ts
+ACTION=file-read
+PROJECT=netboost
+PATH=vite.config.ts
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791298933
+STDOUT_BEGIN
+import { defineConfig } from "vite"; import react from "@vitejs/plugin-react"; export default defineConfig({plugins:[react()]});
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
