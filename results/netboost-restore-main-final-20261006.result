@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=netboost-restore-main-final-20261006
+ACTION=project-write-file
+PROJECT=netboost
+PATH=src/main.tsx
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791315774
+STDOUT_BEGIN
+
+STDOUT_END
+STDERR_BEGIN
+Invalid base64 content.
+STDERR_END
