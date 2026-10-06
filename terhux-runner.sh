@@ -326,6 +326,38 @@ BOOT_SCRIPT=$BOOT_TARGET"
                 STDOUT="TERHUX_STARTED=true"
             fi
             ;;
+        netboost-bootstrap)
+            if [ -z "$PROJECT_DIR" ]; then
+                STATUS="BLOCKED"; STDERR="PROJECT must be registered before bootstrap."
+            elif [ -z "$CONTENT_B64" ]; then
+                STATUS="BLOCKED"; STDERR="CONTENT_B64 is required."
+            else
+                mkdir -p "$PROJECT_DIR"
+                TMP_ARCHIVE="$REPO_DIR/.netboost-bootstrap-$COMMAND_ID.tar.gz"
+                if ! printf "%s" "$CONTENT_B64" | base64 -d > "$TMP_ARCHIVE" 2>/dev/null; then
+                    STATUS="ERROR"; EXIT_CODE=1; STDERR="Invalid bootstrap archive."
+                elif ! tar -xzf "$TMP_ARCHIVE" -C "$PROJECT_DIR" --strip-components=1 2>/dev/null; then
+                    STATUS="ERROR"; EXIT_CODE=1; STDERR="Could not extract the NetBoost project archive."
+                else
+                    cd "$PROJECT_DIR" || exit 1
+                    npm install --no-audit --no-fund >/tmp/netboost-npm-install.log 2>&1
+                    INSTALL_EXIT=$?
+                    TEST_OUTPUT=""; TEST_EXIT=0; BUILD_OUTPUT=""; BUILD_EXIT=0
+                    if [ "$INSTALL_EXIT" -eq 0 ]; then TEST_OUTPUT=$(npm test 2>&1); TEST_EXIT=$?; BUILD_OUTPUT=$(npm run build 2>&1); BUILD_EXIT=$?; fi
+                    STDOUT="PROJECT_BOOTSTRAPPED=true
+PROJECT_DIR=$PROJECT_DIR
+NPM_INSTALL_EXIT=$INSTALL_EXIT
+TEST_EXIT_CODE=$TEST_EXIT
+---TEST---
+$TEST_OUTPUT
+---BUILD_EXIT_CODE=$BUILD_EXIT
+---BUILD---
+$BUILD_OUTPUT"
+                    if [ "$INSTALL_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$INSTALL_EXIT; STDERR="npm install failed."; elif [ "$TEST_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$TEST_EXIT; STDERR="npm test failed."; elif [ "$BUILD_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$BUILD_EXIT; STDERR="npm run build failed."; else git -C "$PROJECT_DIR" init >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" add . >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" commit -m "Build NetBoost from scratch" >/dev/null 2>&1 || true; fi
+                fi
+                rm -f "$TMP_ARCHIVE"
+            fi
+            ;;
         apk-prepare)
             APK_DIR="$REPO_DIR/apk"
             mkdir -p "$APK_DIR"
