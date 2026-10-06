@@ -8,8 +8,16 @@ echo "=========================================="
 echo "TERHUX COMMAND RUNNER"
 echo "=========================================="
 
-COMMAND_FILE=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort | head -n 1)
+COMMAND_FILE="${1:-}"
 if [ -z "$COMMAND_FILE" ]; then
+    mkdir -p "$COMMAND_DIR/.running"
+    NEXT_COMMAND=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort | head -n 1)
+    if [ -n "$NEXT_COMMAND" ]; then
+        CLAIMED="$COMMAND_DIR/.running/$(basename "$NEXT_COMMAND")"
+        if mv "$NEXT_COMMAND" "$CLAIMED" 2>/dev/null; then COMMAND_FILE="$CLAIMED"; fi
+    fi
+fi
+if [ -z "$COMMAND_FILE" ] || [ ! -f "$COMMAND_FILE" ]; then
     echo "No command found."
     exit 0
 fi
@@ -273,7 +281,9 @@ RESULT_FILE="$RESULT_DIR/$COMMAND_ID.result"
 } > "$RESULT_FILE"
 
 rm -f "$COMMAND_FILE"
-git -C "$REPO_DIR" add commands results
-git -C "$REPO_DIR" commit -m "Terhux result: $COMMAND_ID" >/dev/null 2>&1 || true
-git -C "$REPO_DIR" push >/dev/null 2>&1 || true
+if [ "${TERHUX_NO_SYNC:-0}" != "1" ]; then
+    git -C "$REPO_DIR" add commands results
+    git -C "$REPO_DIR" commit -m "Terhux result: $COMMAND_ID" >/dev/null 2>&1 || true
+    git -C "$REPO_DIR" push >/dev/null 2>&1 || true
+fi
 echo "Command processed: $COMMAND_ID"
