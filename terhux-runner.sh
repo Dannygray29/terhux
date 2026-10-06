@@ -26,6 +26,11 @@ project-npm-install)
   [[ "$package_name" =~ ^@?[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?(@[A-Za-z0-9._-]+)?$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid package name."; }
   [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install "$package_name" --save-dev 2>&1); exit_code=$?; }
   ;;
+project-read-file)
+  valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
+  [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac; [ -f "$target" ] || { status=BLOCKED; exit_code=1; stderr="File not found."; }; }
+  [ "$status" = SUCCESS ] && { stdout=$(cat "$target" 2>&1); exit_code=$?; }
+  ;;
 project-build)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run build 2>&1); exit_code=$?; }
