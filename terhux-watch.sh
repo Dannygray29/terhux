@@ -2,28 +2,34 @@
 
 # Terhux repository
 REPO_DIR="$HOME/terhux/repo"
-
-# Check GitHub every 10 seconds
-INTERVAL=10
+INTERVAL="${TERHUX_INTERVAL:-10}"
+MAX_WORKERS="${TERHUX_WORKERS:-3}"
 
 echo "=========================================="
-echo "TERHUX WATCHER"
+echo "TERHUX MULTI-WORKER WATCHER"
 echo "=========================================="
 echo "Watching GitHub every $INTERVAL seconds..."
+echo "Maximum concurrent workers: $MAX_WORKERS"
 echo "Press Ctrl+C to stop."
 
-while true; do
+worker_count() {
+    pgrep -f "$REPO_DIR/terhux-worker.sh" | wc -l
+}
 
-    # Enter repository
+while true; do
     cd "$REPO_DIR" || exit 1
 
-    # Download the latest commands/results from GitHub
     git pull --quiet --rebase 2>/dev/null || true
 
-    # Run the command runner
-    ./terhux-runner.sh
+    RUNNING=$(worker_count)
+    while [ "$RUNNING" -lt "$MAX_WORKERS" ]; do
+        if ! find "$REPO_DIR/commands" -maxdepth 1 -type f -name "*.cmd" | grep -q .; then
+            break
+        fi
+        nohup "$REPO_DIR/terhux-worker.sh" >/dev/null 2>&1 &
+        sleep 0.2
+        RUNNING=$(worker_count)
+    done
 
-    # Wait before checking again
     sleep "$INTERVAL"
-
 done
