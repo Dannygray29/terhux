@@ -1,28 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
+set -u
+
 REPO_DIR="$HOME/terhux/repo"
-INTERVAL="${TERHUX_INTERVAL:-8}"
-LOG_DIR="$REPO_DIR/logs"
-mkdir -p "$LOG_DIR"
-MAX_WORKERS="${TERHUX_WORKERS:-3}"
-AUTO_RECOVER="${TERHUX_AI_AUTO_RECOVER:-1}"
-chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
-worker_count() { pgrep -f "$REPO_DIR/terhux-worker.sh" | wc -l; }
-ai_recovery_count() { pgrep -f "terhux-ai-agent.js recover" | wc -l; }
-echo "TERHUX WATCHER ONLINE: interval=$INTERVAL workers=$MAX_WORKERS"
+INTERVAL="${TERHUX_INTERVAL:-3}"
+
+mkdir -p "$REPO_DIR/commands" "$REPO_DIR/results"
+
 while true; do
-  cd "$REPO_DIR" || exit 1
-  git pull --quiet --rebase 2>/dev/null || true
-  chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
-  command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock >/dev/null 2>&1 || true
-  if [ "$AUTO_RECOVER" = "1" ] && [ "$(ai_recovery_count)" -eq 0 ] && [ -f "$REPO_DIR/terhux-ai-agent.js" ]; then
-    nohup node "$REPO_DIR/terhux-ai-agent.js" recover >>"$LOG_DIR/ai-recovery.log" 2>&1 &
+  git -C "$REPO_DIR" pull --rebase --autostash >/dev/null 2>&1 || true
+
+  command_file=$(find "$REPO_DIR/commands" -maxdepth 1 -type f -name '*.cmd' | sort | head -n1)
+  if [ -n "$command_file" ]; then
+    "$REPO_DIR/terhux-runner.sh" "$command_file" >/dev/null 2>&1 || true
   fi
-  RUNNING=$(worker_count)
-  while [ "$RUNNING" -lt "$MAX_WORKERS" ]; do
-    find "$REPO_DIR/commands" -maxdepth 1 -type f -name "*.cmd" | grep -q . || break
-    nohup "$REPO_DIR/terhux-worker.sh" >>"$LOG_DIR/worker.log" 2>&1 &
-    sleep 0.3
-    RUNNING=$(worker_count)
-  done
+
   sleep "$INTERVAL"
 done
