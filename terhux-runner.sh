@@ -289,6 +289,43 @@ $GH_OUTPUT"
                 fi
             fi
             ;;
+        termux-boot-install)
+            BOOT_DIR="$HOME/.termux/boot"
+            BOOT_SOURCE="$REPO_DIR/boot/start-terhux"
+            BOOT_TARGET="$BOOT_DIR/start-terhux"
+            if [ ! -f "$BOOT_SOURCE" ]; then
+                STATUS="ERROR"
+                EXIT_CODE=1
+                STDERR="Terhux boot script is missing: $BOOT_SOURCE"
+            else
+                mkdir -p "$BOOT_DIR"
+                cp "$BOOT_SOURCE" "$BOOT_TARGET"
+                chmod +x "$BOOT_TARGET"
+                EXIT_CODE=$?
+                if [ "$EXIT_CODE" -ne 0 ]; then
+                    STATUS="ERROR"
+                    STDERR="Could not install the Termux:Boot entrypoint."
+                else
+                    STATUS="SUCCESS"
+                    STDOUT="TERMUX_BOOT_INSTALLED=true
+BOOT_SCRIPT=$BOOT_TARGET"
+                fi
+            fi
+            ;;
+        terhux-start)
+            if [ ! -x "$REPO_DIR/terhux-start.sh" ]; then
+                chmod +x "$REPO_DIR/terhux-start.sh" "$REPO_DIR/terhux-supervisor.sh" "$REPO_DIR/terhux-watch.sh"
+            fi
+            nohup "$REPO_DIR/terhux-start.sh" >/dev/null 2>&1 &
+            EXIT_CODE=$?
+            if [ "$EXIT_CODE" -ne 0 ]; then
+                STATUS="ERROR"
+                STDERR="Could not start the Terhux supervisor."
+            else
+                STATUS="SUCCESS"
+                STDOUT="TERHUX_STARTED=true"
+            fi
+            ;;
         apk-prepare)
             APK_DIR="$REPO_DIR/apk"
             mkdir -p "$APK_DIR"
