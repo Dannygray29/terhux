@@ -359,7 +359,7 @@ $TEST_OUTPUT
 ---BUILD_EXIT_CODE=$BUILD_EXIT
 ---BUILD---
 $BUILD_OUTPUT"
-                    if [ "$INSTALL_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$INSTALL_EXIT; STDERR="npm install failed."; elif [ "$TEST_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$TEST_EXIT; STDERR="npm test failed."; elif [ "$BUILD_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$BUILD_EXIT; STDERR="npm run build failed."; else git -C "$PROJECT_DIR" init >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" add . >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" commit -m "Build NetBoost from scratch" >/dev/null 2>&1 || true; fi
+                    if [ "$INSTALL_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$INSTALL_EXIT; STDERR="npm install failed."; elif [ "$TEST_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$TEST_EXIT; STDERR="npm test failed."; elif [ "$BUILD_EXIT" -ne 0 ]; then STATUS="ERROR"; EXIT_CODE=$BUILD_EXIT; STDERR="npm run build failed."; else git -C "$PROJECT_DIR" init >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" add . >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" commit -m "Build NetBoost from scratch" >/dev/null 2>&1 || true; if [ ! -d "$PROJECT_DIR/android" ]; then (cd "$PROJECT_DIR" && npx cap add android) >>/tmp/netboost-capacitor.log 2>&1 || true; fi; git -C "$PROJECT_DIR" add . >/dev/null 2>&1 || true; git -C "$PROJECT_DIR" commit -m "Add Capacitor Android platform" >/dev/null 2>&1 || true; if command -v gh >/dev/null 2>&1; then gh repo view Dannygray29/netboost >/dev/null 2>&1 || gh repo create Dannygray29/netboost --private --source "$PROJECT_DIR" --push >/tmp/netboost-gh.log 2>&1 || true; fi; fi
                 fi
                 rm -f "$TMP_ARCHIVE"
             fi
