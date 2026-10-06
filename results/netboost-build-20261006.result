@@ -1,0 +1,30 @@
+TERHUX_RESULT_V1
+ID=netboost-build-20261006
+ACTION=project-build
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791313945
+STDOUT_BEGIN
+
+> netboost@0.1.0 build
+> tsc -b && vite build
+
+file:///data/data/com.termux/files/home/netboost/node_modules/typescript/lib/getExePath.js:53
+            throw new Error("Unable to resolve " + platformPackageName + ". Either your platform is unsupported, or you are missing the package on disk.");
+                  ^
+
+Error: Unable to resolve @typescript/typescript-android-arm64. Either your platform is unsupported, or you are missing the package on disk.
+    at getExePath (file:///data/data/com.termux/files/home/netboost/node_modules/typescript/lib/getExePath.js:53:19)
+    at file:///data/data/com.termux/files/home/netboost/node_modules/typescript/lib/tsc.js:6:13
+    at ModuleJob.run (node:internal/modules/esm/module_job:447:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:646:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.4.0
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
