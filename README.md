@@ -95,3 +95,23 @@ TERHUX_WORKERS=4 ./terhux-watch.sh
 ```
 
 For a phone, the default of 3 is intentionally conservative. Build/test tasks can consume substantially more CPU and memory than inspection or file operations.
+
+
+## Task manager
+
+Use `terhux-task.sh` to create and inspect tasks without manually constructing command files.
+
+```bash
+./terhux-task.sh create void-check void project-inspect "" ""
+./terhux-task.sh list
+./terhux-task.sh status void-check
+./terhux-task.sh cancel void-check
+```
+
+Task states are persisted in `tasks/*.state`:
+
+`QUEUED → RUNNING → SUCCESS / ERROR / BLOCKED`
+
+A queued task can be cancelled before a worker claims it. Running or completed tasks are not cancelled by this simple CLI.
+
+The task manager is intentionally separate from command execution: it creates queue entries, while the multi-worker watcher schedules them.
