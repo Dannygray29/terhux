@@ -1,0 +1,22 @@
+TERHUX_RESULT_V1
+ID=netboost-typescript-arm64-20261006
+ACTION=project-npm-install
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791314458
+STDOUT_BEGIN
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@typescript%2ftypescript-android-arm64 - Not found
+npm error 404
+npm error 404  The requested resource '@typescript/typescript-android-arm64@*' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm error A complete log of this run can be found in: /data/data/com.termux/files/home/.npm/_logs/2026-10-06T19_20_51_052Z-debug-0.log
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
