@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=chatgpt-multiline-test
+ACTION=file-write-b64
+PROJECT=terhux
+PATH=results/multiline-test.txt
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791269313
+---STDOUT---
+Wrote results/multiline-test.txt (base64)
+---END_STDOUT---
+---STDERR---
+
+---END_STDERR---
