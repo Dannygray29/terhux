@@ -40,6 +40,7 @@ case "$project" in
   "") ;;
   terhux) project_dir="$REPO_DIR" ;;
   void) project_dir="$HOME/void" ;;
+  netboost) project_dir="$HOME/netboost" ;;
   *) status=BLOCKED; stderr="Unknown project. Project is not registered with Terhux." ;;
 esac
 
