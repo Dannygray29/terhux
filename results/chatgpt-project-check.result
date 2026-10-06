@@ -1,0 +1,24 @@
+TERHUX_RESULT_V1
+ID=chatgpt-project-check
+ACTION=project-check
+PROJECT=void
+PATH=
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791269401
+---STDOUT---
+TEST_EXIT_CODE=1
+---TEST---
+npm error Missing script: "test"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /data/data/com.termux/files/home/.npm/_logs/2026-10-06T06_50_00_322Z-debug-0.log
+---BUILD_EXIT_CODE=0
+---BUILD---
+
+---END_STDOUT---
+---STDERR---
+npm test failed.
+---END_STDERR---
