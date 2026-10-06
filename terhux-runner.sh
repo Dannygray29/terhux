@@ -17,7 +17,6 @@ fi
 COMMAND_ID=$(basename "$COMMAND_FILE" .cmd)
 RAW_COMMAND=$(cat "$COMMAND_FILE")
 
-# Protocol: ACTION=..., PROJECT=..., PATH=..., CONTENT=..., APPROVED=true
 ACTION=""
 PROJECT=""
 REL_PATH=""
@@ -29,9 +28,9 @@ ACTION=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^ACTION=//p' | head -n 1)
 PROJECT=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^PROJECT=//p' | head -n 1)
 REL_PATH=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^PATH=//p' | head -n 1)
 APPROVED=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^APPROVED=//p' | head -n 1)
+CONTENT=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^CONTENT=//p' | head -n 1)
 CONTENT_B64=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^CONTENT_B64=//p' | head -n 1)
 
-# Backward compatibility for the original simple commands.
 if [ -z "$ACTION" ]; then
     ACTION="$RAW_COMMAND"
     case "$ACTION" in
@@ -45,7 +44,6 @@ STDOUT=""
 STDERR=""
 PROJECT_DIR=""
 
-# Only registered project roots are allowed.
 case "$PROJECT" in
     "") ;;
     terhux) PROJECT_DIR="$REPO_DIR" ;;
@@ -53,7 +51,6 @@ case "$PROJECT" in
     *) STATUS="BLOCKED"; STDERR="Unknown project. Project is not registered with Terhux." ;;
 esac
 
-# File paths must be relative and cannot escape the registered project.
 SAFE_PATH="false"
 if [ -n "$REL_PATH" ] && [ -n "$PROJECT_DIR" ]; then
     case "$REL_PATH" in
@@ -79,12 +76,11 @@ if [ "$STATUS" = "SUCCESS" ]; then
         date) STDOUT=$(date) ;;
         termux-version) STDOUT=$(termux-info 2>&1 | head -20) ;;
         git-version) STDOUT=$(git --version) ;;
-        node-version)
-            STDOUT=$(node --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
-        npm-version)
-            STDOUT=$(npm --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
+        node-version) STDOUT=$(node --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
+        npm-version) STDOUT=$(npm --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
         project-list)
-            STDOUT=$(find "$HOME" -maxdepth 2 -type d -name .git -print 2>/dev/null | sed 's#/.git$##' | sort) || { EXIT_CODE=$?; STATUS="ERROR"; } ;;
+            STDOUT=$(find "$HOME" -maxdepth 2 -type d -name .git -print 2>/dev/null | sed 's#/.git$##' | sort) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
         project-check)
             if [ -z "$PROJECT" ]; then
                 STATUS="BLOCKED"; STDERR="PROJECT is required."
@@ -236,6 +232,18 @@ $(if [ -f "$PROJECT_DIR/package.json" ]; then cat "$PROJECT_DIR/package.json"; e
                 EXIT_CODE=$?
                 [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
                 STDOUT="Push operation completed."
+            fi
+            ;;
+        apk-prepare)
+            APK_DIR="$REPO_DIR/apk"
+            mkdir -p "$APK_DIR"
+            if [ ! -f "$APK_DIR/Terhux.apk" ]; then
+                STATUS="BLOCKED"
+                STDERR="No Terhux.apk is present. Build the GitHub Actions APK first, then place it at $APK_DIR/Terhux.apk."
+            else
+                STDOUT="APK_READY=true
+APK_PATH=$APK_DIR/Terhux.apk
+APK_SIZE=$(wc -c < "$APK_DIR/Terhux.apk")"
             fi
             ;;
         *)
