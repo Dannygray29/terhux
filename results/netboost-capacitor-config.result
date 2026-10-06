@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=netboost-capacitor-config
+ACTION=file-write-b64
+PROJECT=netboost
+PATH=capacitor.config.ts
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791298946
+STDOUT_BEGIN
+Wrote capacitor.config.ts
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
