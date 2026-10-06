@@ -140,6 +140,42 @@ if [ "$STATUS" = "SUCCESS" ]; then
                 STDOUT=$(git -C "$PROJECT_DIR" diff -- 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
             fi
             ;;
+        git-add)
+            if [ -z "$PROJECT" ]; then
+                STATUS="BLOCKED"; STDERR="PROJECT is required."
+            elif [ -z "$REL_PATH" ]; then
+                STATUS="BLOCKED"; STDERR="PATH is required for git-add."
+            elif [ "$SAFE_PATH" != "true" ]; then
+                STATUS="BLOCKED"; STDERR="A safe relative PATH is required."
+            else
+                git -C "$PROJECT_DIR" add -- "$REL_PATH"
+                EXIT_CODE=$?
+                [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
+                STDOUT="Staged $REL_PATH"
+            fi
+            ;;
+        git-commit)
+            if [ -z "$PROJECT" ]; then
+                STATUS="BLOCKED"; STDERR="PROJECT is required."
+            elif [ -z "$CONTENT" ]; then
+                STATUS="BLOCKED"; STDERR="CONTENT is required as the commit message."
+            else
+                git -C "$PROJECT_DIR" commit -m "$CONTENT" 2>&1
+                EXIT_CODE=$?
+                [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
+                STDOUT="Commit operation completed."
+            fi
+            ;;
+        git-push)
+            if [ -z "$PROJECT" ]; then
+                STATUS="BLOCKED"; STDERR="PROJECT is required."
+            else
+                git -C "$PROJECT_DIR" push 2>&1
+                EXIT_CODE=$?
+                [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
+                STDOUT="Push operation completed."
+            fi
+            ;;
         *)
             STATUS="BLOCKED"
             STDERR="Action is not on the Terhux safety allowlist."
