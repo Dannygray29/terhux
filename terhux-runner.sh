@@ -54,9 +54,20 @@ PROJECT_DIR=""
 
 case "$PROJECT" in
     "") ;;
-    terhux) PROJECT_DIR="$REPO_DIR" ;;
-    void) PROJECT_DIR="$HOME/void" ;;
-    *) STATUS="BLOCKED"; STDERR="Unknown project. Project is not registered with Terhux." ;;
+    *)
+        PROJECT_DIR=""
+        REGISTRY="$REPO_DIR/projects.conf"
+        if [ -f "$REGISTRY" ]; then
+            REGISTRY_PATH=$(sed -n "s#^$PROJECT|##p" "$REGISTRY" | head -n 1)
+            if [ -n "$REGISTRY_PATH" ]; then
+                PROJECT_DIR=$(eval "printf '%s' \"$REGISTRY_PATH\"")
+            fi
+        fi
+        if [ -z "$PROJECT_DIR" ]; then
+            STATUS="BLOCKED"
+            STDERR="Unknown project. Register it in projects.conf before use."
+        fi
+        ;;
 esac
 
 SAFE_PATH="false"
