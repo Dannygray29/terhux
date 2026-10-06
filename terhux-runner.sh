@@ -8,7 +8,7 @@ echo "=========================================="
 echo "TERHUX COMMAND RUNNER"
 echo "=========================================="
 
-# Find the oldest pending command file.
+# Find the oldest pending command.
 COMMAND_FILE=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort | head -n 1)
 
 if [ -z "$COMMAND_FILE" ]; then
@@ -19,10 +19,9 @@ fi
 COMMAND_ID=$(basename "$COMMAND_FILE" .cmd)
 RAW_COMMAND=$(cat "$COMMAND_FILE")
 
-# Structured commands use:
+# Structured commands:
 # ACTION=<allowlisted action>
 # APPROVED=true
-# Plain commands remain supported for the original five safe actions.
 ACTION=""
 APPROVED="false"
 
@@ -38,37 +37,22 @@ else
     esac
 fi
 
-echo ""
-echo "Command ID: $COMMAND_ID"
-echo "Action: $ACTION"
-echo "Approved: $APPROVED"
-
 STATUS="SUCCESS"
 EXIT_CODE=0
 STDOUT=""
 STDERR=""
 
-# Safety allowlist: no arbitrary shell execution.
+# Safety allowlist. No arbitrary shell execution.
 if [ "$APPROVED" != "true" ]; then
     STATUS="BLOCKED"
     STDERR="Approval required. Set APPROVED=true."
 else
     case "$ACTION" in
-        pwd)
-            STDOUT=$(pwd)
-            ;;
-        whoami)
-            STDOUT=$(whoami)
-            ;;
-        date)
-            STDOUT=$(date)
-            ;;
-        termux-version)
-            STDOUT=$(termux-info 2>&1 | head -20)
-            ;;
-        git-version)
-            STDOUT=$(git --version)
-            ;;
+        pwd) STDOUT=$(pwd) ;;
+        whoami) STDOUT=$(whoami) ;;
+        date) STDOUT=$(date) ;;
+        termux-version) STDOUT=$(termux-info 2>&1 | head -20) ;;
+        git-version) STDOUT=$(git --version) ;;
         node-version)
             STDOUT=$(node --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
             ;;
@@ -77,6 +61,32 @@ else
             ;;
         git-status)
             STDOUT=$(git -C "$REPO_DIR" status --short --branch 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
+        git-branch)
+            STDOUT=$(git -C "$REPO_DIR" branch --show-current 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
+        project-list)
+            STDOUT=$(find "$HOME" -maxdepth 2 -type d -name .git -print 2>/dev/null | sed 's#/.git$##' | sort) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
+        npm-test)
+            if [ -f "$REPO_DIR/package.json" ]; then
+                STDOUT=$(cd "$REPO_DIR" && npm test 2>&1)
+                EXIT_CODE=$?
+                [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
+            else
+                STATUS="BLOCKED"
+                STDERR="No package.json in the Terhux project."
+            fi
+            ;;
+        npm-build)
+            if [ -f "$REPO_DIR/package.json" ]; then
+                STDOUT=$(cd "$REPO_DIR" && npm run build 2>&1)
+                EXIT_CODE=$?
+                [ "$EXIT_CODE" -eq 0 ] || STATUS="ERROR"
+            else
+                STATUS="BLOCKED"
+                STDERR="No package.json in the Terhux project."
+            fi
             ;;
         *)
             STATUS="BLOCKED"
@@ -107,11 +117,9 @@ RESULT_FILE="$RESULT_DIR/$COMMAND_ID.result"
 # Remove the processed command.
 rm -f "$COMMAND_FILE"
 
-# Send the result back to GitHub.
+# Push the result back to GitHub.
 git -C "$REPO_DIR" add commands results
 git -C "$REPO_DIR" commit -m "Terhux result: $COMMAND_ID" >/dev/null 2>&1 || true
 git -C "$REPO_DIR" push >/dev/null 2>&1 || true
 
-echo ""
-echo "Command processed."
-echo "Result: $RESULT_FILE"
+echo "Command processed: $COMMAND_ID"
