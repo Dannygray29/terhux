@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=nb-src-src-App.tsx
+ACTION=file-read
+PROJECT=netboost
+PATH=src/App.tsx
+APPROVED=true
+STATUS=ERROR
+EXIT_CODE=1
+TIME=1791298895
+STDOUT_BEGIN
+
+STDOUT_END
+STDERR_BEGIN
+File does not exist.
+STDERR_END
