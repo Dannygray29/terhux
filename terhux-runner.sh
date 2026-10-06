@@ -64,7 +64,7 @@ if [ "$status" = "SUCCESS" ]; then
     netboost-install-android) if [ "$project" != "netboost" ]; then status=BLOCKED; stderr="netboost-install-android requires PROJECT=netboost."; else cd "$HOME/netboost" && npm install @capacitor/android@^8.0.0; exit_code=$?; fi ;;
     netboost-build) if [ -x "$HOME/netboost/node_modules/.bin/vite" ]; then cd "$HOME/netboost" && npm run build; exit_code=$?; else status=ERROR; exit_code=1; stderr="NetBoost dependencies are not installed."; fi ;;
     netboost-cap-sync) if [ -x "$HOME/netboost/node_modules/.bin/capacitor" ]; then cd "$HOME/netboost" && npm run build >/tmp/netboost-build.log 2>&1 && npx cap sync; exit_code=$?; stdout=$(tail -80 /tmp/netboost-build.log 2>/dev/null); else status=ERROR; exit_code=1; stderr="Capacitor CLI is not installed."; fi ;;
-    netboost-android-build) if [ -x "$HOME/netboost/android/gradlew" ]; then cd "$HOME/netboost/android" && ./gradlew assembleDebug; exit_code=$?; else status=ERROR; exit_code=1; stderr="Android project or Gradle wrapper is missing."; fi ;;
+    netboost-android-build) if [ -x "$HOME/netboost/android/gradlew" ]; then cd "$HOME/netboost/android" && ./gradlew assembleDebug > /tmp/netboost-android-build.log 2>&1; exit_code=$?; stdout=$(tail -120 /tmp/netboost-android-build.log 2>/dev/null); else status=ERROR; exit_code=1; stderr="Android project or Gradle wrapper is missing."; fi ;;
     git-version) stdout=$(git --version); exit_code=$? ;;
     node-version) stdout=$(node --version 2>&1); exit_code=$? ;;
     npm-version) stdout=$(npm --version 2>&1); exit_code=$? ;;
