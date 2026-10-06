@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=greystudio-enable
+ACTION=file-write-b64
+PROJECT=terhux
+PATH=terhux-runner.sh
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791271209
+---STDOUT---
+Wrote terhux-runner.sh (base64)
+---END_STDOUT---
+---STDERR---
+
+---END_STDERR---
