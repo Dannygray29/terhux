@@ -10,14 +10,36 @@ SYNC_LOCK="$LOCK_DIR/git-sync.lock"
 
 mkdir -p "$RUNNING_DIR" "$RESULT_DIR" "$TASK_DIR" "$LOCK_DIR"
 
-COMMAND_FILE=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort | head -n 1)
+COMMAND_FILE=""
+PROJECT=""
+PROJECT_LOCK=""
+
+# Find the first command whose project is not currently being executed.
+# Busy projects are skipped so a worker slot remains available for another project.
+while IFS= read -r candidate; do
+    candidate_project=$(sed -n 's/^PROJECT=//p' "$candidate" | head -n 1)
+    [ -n "$candidate_project" ] || continue
+
+    safe_project=$(printf '%s' "$candidate_project" | tr -c 'A-Za-z0-9._-' '_')
+    candidate_lock="$LOCK_DIR/project-$safe_project.lock"
+
+    if mkdir "$candidate_lock" 2>/dev/null; then
+        COMMAND_FILE="$candidate"
+        PROJECT="$candidate_project"
+        PROJECT_LOCK="$candidate_lock"
+        break
+    fi
+done < <(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort)
+
 [ -n "$COMMAND_FILE" ] || exit 0
 
 CLAIMED="$RUNNING_DIR/$(basename "$COMMAND_FILE")"
-mv "$COMMAND_FILE" "$CLAIMED" 2>/dev/null || exit 0
+if ! mv "$COMMAND_FILE" "$CLAIMED" 2>/dev/null; then
+    rmdir "$PROJECT_LOCK" 2>/dev/null || true
+    exit 0
+fi
 
 COMMAND_ID=$(basename "$CLAIMED" .cmd)
-PROJECT=$(sed -n 's/^PROJECT=//p' "$CLAIMED" | head -n 1)
 STATE_FILE="$TASK_DIR/$COMMAND_ID.state"
 CREATED=$(sed -n 's/^CREATED=//p' "$STATE_FILE" | head -n1)
 [ -n "$CREATED" ] || CREATED=$(date +%s)
@@ -30,12 +52,6 @@ APPROVAL=APPROVED
 CREATED=$CREATED
 STARTED=$(date +%s)
 EOF
-
-PROJECT_LOCK=""
-if [ -n "$PROJECT" ]; then
-    PROJECT_LOCK="$LOCK_DIR/project-$PROJECT.lock"
-    while ! mkdir "$PROJECT_LOCK" 2>/dev/null; do sleep 1; done
-fi
 
 TERHUX_NO_SYNC=1 "$REPO_DIR/terhux-runner.sh" "$CLAIMED"
 RUN_EXIT=$?
