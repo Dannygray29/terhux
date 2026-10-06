@@ -8,64 +8,109 @@ echo "=========================================="
 echo "TERHUX COMMAND RUNNER"
 echo "=========================================="
 
-# Find the oldest pending command
+# Find the oldest pending command file.
 COMMAND_FILE=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name "*.cmd" | sort | head -n 1)
 
-# Nothing to process
 if [ -z "$COMMAND_FILE" ]; then
     echo "No command found."
     exit 0
 fi
 
 COMMAND_ID=$(basename "$COMMAND_FILE" .cmd)
-COMMAND=$(cat "$COMMAND_FILE")
+RAW_COMMAND=$(cat "$COMMAND_FILE")
+
+# Structured commands use:
+# ACTION=<allowlisted action>
+# APPROVED=true
+# Plain commands remain supported for the original five safe actions.
+ACTION=""
+APPROVED="false"
+
+if printf '%s\n' "$RAW_COMMAND" | grep -q '^ACTION='; then
+    ACTION=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^ACTION=//p' | head -n 1)
+    APPROVED=$(printf '%s\n' "$RAW_COMMAND" | sed -n 's/^APPROVED=//p' | head -n 1)
+else
+    ACTION="$RAW_COMMAND"
+    case "$ACTION" in
+        pwd|whoami|date|termux-version|git-version)
+            APPROVED="true"
+            ;;
+    esac
+fi
 
 echo ""
 echo "Command ID: $COMMAND_ID"
-echo "Command: $COMMAND"
+echo "Action: $ACTION"
+echo "Approved: $APPROVED"
 
-# Safety allowlist
-case "$COMMAND" in
-    pwd)
-        RESULT=$(pwd)
-        ;;
-    whoami)
-        RESULT=$(whoami)
-        ;;
-    date)
-        RESULT=$(date)
-        ;;
-    termux-version)
-        RESULT=$(termux-info 2>&1 | head -20)
-        ;;
-    git-version)
-        RESULT=$(git --version)
-        ;;
-    *)
-        RESULT="BLOCKED: Command is not on the Terhux safety allowlist."
-        ;;
-esac
+STATUS="SUCCESS"
+EXIT_CODE=0
+STDOUT=""
+STDERR=""
 
-# Save result
+# Safety allowlist: no arbitrary shell execution.
+if [ "$APPROVED" != "true" ]; then
+    STATUS="BLOCKED"
+    STDERR="Approval required. Set APPROVED=true."
+else
+    case "$ACTION" in
+        pwd)
+            STDOUT=$(pwd)
+            ;;
+        whoami)
+            STDOUT=$(whoami)
+            ;;
+        date)
+            STDOUT=$(date)
+            ;;
+        termux-version)
+            STDOUT=$(termux-info 2>&1 | head -20)
+            ;;
+        git-version)
+            STDOUT=$(git --version)
+            ;;
+        node-version)
+            STDOUT=$(node --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
+        npm-version)
+            STDOUT=$(npm --version 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
+        git-status)
+            STDOUT=$(git -C "$REPO_DIR" status --short --branch 2>&1) || { EXIT_CODE=$?; STATUS="ERROR"; }
+            ;;
+        *)
+            STATUS="BLOCKED"
+            STDERR="Action is not on the Terhux safety allowlist."
+            ;;
+    esac
+fi
+
 RESULT_FILE="$RESULT_DIR/$COMMAND_ID.result"
 
 {
     echo "TERHUX RESULT"
     echo "=============="
     echo "ID: $COMMAND_ID"
-    echo "COMMAND: $COMMAND"
+    echo "ACTION: $ACTION"
+    echo "APPROVED: $APPROVED"
+    echo "STATUS: $STATUS"
+    echo "EXIT_CODE: $EXIT_CODE"
     echo "TIME: $(date)"
     echo ""
-    echo "$RESULT"
+    echo "STDOUT:"
+    echo "$STDOUT"
+    echo ""
+    echo "STDERR:"
+    echo "$STDERR"
 } > "$RESULT_FILE"
 
-# Remove processed command
+# Remove the processed command.
 rm -f "$COMMAND_FILE"
 
-# Send result back to GitHub
-git add commands results
-git commit -m "Terhux result: $COMMAND_ID" >/dev/null 2>&1 || true
-git push >/dev/null 2>&1 || true
+# Send the result back to GitHub.
+git -C "$REPO_DIR" add commands results
+git -C "$REPO_DIR" commit -m "Terhux result: $COMMAND_ID" >/dev/null 2>&1 || true
+git -C "$REPO_DIR" push >/dev/null 2>&1 || true
 
 echo ""
 echo "Command processed."
