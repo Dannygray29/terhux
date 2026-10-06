@@ -1,0 +1,23 @@
+TERHUX_RESULT_V1
+ID=netboost-diagnose
+ACTION=netboost-diagnose
+PROJECT=netboost
+PATH=
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791299477
+STDOUT_BEGIN
+NODE=v26.4.0
+NPM=11.20.0
+JAVA=openjdk version "21.0.12" 2026-07-21
+CAP=8.5.2
+ANDROID_DIR=no
+PACKAGE_ANDROID=missing
+BUILD_CONFIG=tsconfig.app.json
+tsconfig.json
+vite.config.ts
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
