@@ -34,7 +34,7 @@ File paths are restricted to registered project directories and must be relative
 - development: `node-version`, `npm-version`, `project-list`
 - Git: `git-status`, `git-branch`, `git-diff`, `git-add`, `git-commit`, `git-push`
 - files: `file-list`, `file-read`, `file-write`
-- project: `npm-test`, `npm-build`
+- project: `project-inspect`, `npm-test`, `npm-build`
 
 There is still no arbitrary shell execution. File writes require explicit approval and are confined to registered projects.
 
@@ -45,3 +45,8 @@ Results now begin with `TERHUX_RESULT_V1`. Stable key/value fields report the co
 
 
 For multiline files, use `ACTION=file-write-b64` with `CONTENT_B64=<base64>`. This avoids newline/parsing problems in the command protocol.
+
+
+### Development workflow
+
+Use `project-inspect` before changing a project. It reports the registered root, current branch, Git status, a bounded file list, and package metadata. Then use the file and Git actions to make an approved change, followed by `npm-test` or `npm-build` and inspect the structured result before continuing.
