@@ -54,6 +54,7 @@ fi
 
 if [ "$status" = "SUCCESS" ]; then
   case "$action" in
+    terhux-runner-version) stdout="TERHUX_RUNNER_BUILD=2026-10-06-diagnostics-v2"; exit_code=0 ;;
     pwd) stdout=$(pwd) ;;
     whoami) stdout=$(whoami) ;;
     date) stdout=$(date) ;;
