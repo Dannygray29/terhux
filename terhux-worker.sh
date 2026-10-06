@@ -20,6 +20,14 @@ fi
 
 COMMAND_ID=$(basename "$CLAIMED" .cmd)
 PROJECT=$(sed -n 's/^PROJECT=//p' "$CLAIMED" | head -n 1)
+TASK_DIR="$REPO_DIR/tasks"
+mkdir -p "$TASK_DIR"
+cat > "$TASK_DIR/$COMMAND_ID.state" <<EOF
+ID=$COMMAND_ID
+PROJECT=$PROJECT
+STATUS=RUNNING
+STARTED=$(date +%s)
+EOF
 
 PROJECT_LOCK=""
 if [ -n "$PROJECT" ]; then
@@ -31,6 +39,17 @@ fi
 
 TERHUX_NO_SYNC=1 "$REPO_DIR/terhux-runner.sh" "$CLAIMED"
 RUN_EXIT=$?
+RESULT="$RESULT_DIR/$COMMAND_ID.result"
+STATUS=$(sed -n 's/^STATUS=//p' "$RESULT" 2>/dev/null | head -n1)
+[ -z "$STATUS" ] && STATUS="ERROR"
+cat > "$TASK_DIR/$COMMAND_ID.state" <<EOF
+ID=$COMMAND_ID
+PROJECT=$PROJECT
+STATUS=$STATUS
+EXIT_CODE=$RUN_EXIT
+STARTED=$(sed -n 's/^STARTED=//p' "$TASK_DIR/$COMMAND_ID.state" | head -n1)
+UPDATED=$(date +%s)
+EOF
 
 if [ -n "$PROJECT_LOCK" ]; then
     rmdir "$PROJECT_LOCK" 2>/dev/null || true
