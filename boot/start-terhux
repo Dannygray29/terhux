@@ -1,17 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
-
-# Terhux automatic Android startup entrypoint.
-# Termux:Boot runs this script after Android boot when the Termux:Boot add-on is installed.
 REPO_DIR="$HOME/terhux/repo"
 LOG_DIR="$REPO_DIR/logs"
 mkdir -p "$LOG_DIR"
-
-# Give Android networking a moment to come up.
-sleep 15
-
-# Keep exactly one watcher alive.
-if pgrep -f "$REPO_DIR/terhux-watch.sh" >/dev/null 2>&1; then
-    exit 0
+command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock >/dev/null 2>&1 || true
+if [ -d "$REPO_DIR/.git" ]; then
+  cd "$REPO_DIR" || exit 1
+  git pull --quiet --rebase >>"$LOG_DIR/boot.log" 2>&1 || true
 fi
-
-nohup "$REPO_DIR/terhux-watch.sh" >>"$LOG_DIR/watch.log" 2>&1 &
+chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
+if pgrep -f "$REPO_DIR/terhux-supervisor.sh" >/dev/null 2>&1; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') supervisor already running" >>"$LOG_DIR/boot.log"
+  exit 0
+fi
+echo "$(date '+%Y-%m-%d %H:%M:%S') starting Terhux supervisor" >>"$LOG_DIR/boot.log"
+nohup "$REPO_DIR/terhux-supervisor.sh" >>"$LOG_DIR/supervisor.log" 2>&1 &
