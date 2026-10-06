@@ -1,0 +1,15 @@
+TERHUX_RESULT_V1
+ID=chatgpt-result-test
+ACTION=node-version
+PROJECT=
+PATH=
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791269270
+---STDOUT---
+v26.4.0
+---END_STDOUT---
+---STDERR---
+
+---END_STDERR---
