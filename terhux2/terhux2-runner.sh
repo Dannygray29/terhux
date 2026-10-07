@@ -6,6 +6,30 @@ COMMANDS="$ROOT/commands"
 RESULTS="$ROOT/results"
 mkdir -p "$COMMANDS" "$RESULTS"
 
+# Keep the local command queue synchronized with GitHub before every scan.
+sync_remote() {
+  git -C "$ROOT" fetch origin terhux2 >/dev/null 2>&1 || true
+  git -C "$ROOT" merge --ff-only origin/terhux2 >/dev/null 2>&1 || true
+}
+
+publish_result() {
+  for attempt in 1 2 3 4 5; do
+    git -C "$ROOT" fetch origin terhux2 >/dev/null 2>&1 || true
+    git -C "$ROOT" rebase origin/terhux2 >/dev/null 2>&1 || {
+      git -C "$ROOT" rebase --abort >/dev/null 2>&1 || true
+      sleep 2
+      continue
+    }
+    if git -C "$ROOT" push origin HEAD:terhux2 >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+sync_remote
+
 for cmd in "$COMMANDS"/*.cmd; do
   [ -f "$cmd" ] || continue
 
@@ -90,9 +114,5 @@ REVIEW_MODE=read-only-static"
   rm -f "$cmd"
   git -C "$ROOT" add commands results >/dev/null 2>&1 || true
   git -C "$ROOT" commit -m "Terhux 2 result: $id" >/dev/null 2>&1 || true
-  for attempt in 1 2 3 4 5; do
-    if git -C "$ROOT" fetch origin terhux2 >/dev/null 2>&1 && git -C "$ROOT" rebase origin/terhux2 >/dev/null 2>&1 && git -C "$ROOT" push origin HEAD:terhux2 >/dev/null 2>&1; then break; fi
-    git -C "$ROOT" rebase --abort >/dev/null 2>&1 || true
-    sleep 2
-  done
+  publish_result || true
 done
