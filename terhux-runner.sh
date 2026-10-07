@@ -63,6 +63,40 @@ project-test)
 project-android)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run android 2>&1); exit_code=$?; };;
+terhux2-bootstrap)
+  [ "$status" = SUCCESS ] && {
+    BASE="$HOME/terhux2"; REPO="$BASE/repo"; SERVICE="$PREFIX/var/service/terhux2"
+    mkdir -p "$BASE" "$SERVICE"
+    if [ ! -d "$REPO/.git" ]; then git clone --branch terhux2 https://github.com/Dannygray29/terhux.git "$REPO" >/tmp/terhux2-bootstrap.log 2>&1; else git -C "$REPO" fetch origin terhux2 >/tmp/terhux2-bootstrap.log 2>&1 && git -C "$REPO" reset --hard origin/terhux2 >>/tmp/terhux2-bootstrap.log 2>&1; fi
+    chmod +x "$REPO/terhux2-runner.sh"
+    cat > "$SERVICE/run" <<'RUN'
+#!/data/data/com.termux/files/usr/bin/bash
+BASE="$HOME/terhux2/repo"
+while true; do
+  if [ -d "$BASE/.git" ]; then
+    git -C "$BASE" fetch origin terhux2 >/dev/null 2>&1 || true
+    git -C "$BASE" reset --hard origin/terhux2 >/dev/null 2>&1 || true
+    "$BASE/terhux2-runner.sh" >/dev/null 2>&1 || true
+  fi
+  sleep 3
+done
+RUN
+    chmod +x "$SERVICE/run"
+    mkdir -p "$PREFIX/var/service"
+    ln -sfn "$SERVICE" "$PREFIX/var/service/terhux2"
+    command -v sv >/dev/null 2>&1 && sv up terhux2 >/dev/null 2>&1 || true
+    mkdir -p "$HOME/.termux/boot"
+    cat > "$HOME/.termux/boot/terhux2-start" <<'BOOT'
+#!/data/data/com.termux/files/usr/bin/bash
+command -v sv >/dev/null 2>&1 && sv up terhux2 >/dev/null 2>&1 || true
+BOOT
+    chmod +x "$HOME/.termux/boot/terhux2-start"
+    stdout="TERHUX2_BOOTSTRAPPED
+SERVICE=terhux2
+SUPERVISOR=runit
+BOOT=enabled
+REPO=$REPO"
+  };;
 *) status=BLOCKED; exit_code=1; stderr="Action is not on the Terhux core allowlist.";;
 esac
 fi
