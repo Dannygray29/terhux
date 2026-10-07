@@ -1,21 +1,24 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -u
 
-REPO_DIR="$HOME/terhux/repo"
+REPO_DIR="${TERHUX_REPO_DIR:-$HOME/terhux/repo}"
 COMMAND_DIR="$REPO_DIR/commands"
-RESULT_DIR="$REPO_DIR/results"
+LOG_DIR="$REPO_DIR/logs"
 INTERVAL="${TERHUX_INTERVAL:-5}"
 
-mkdir -p "$COMMAND_DIR" "$RESULT_DIR"
+mkdir -p "$COMMAND_DIR" "$REPO_DIR/results" "$LOG_DIR"
+log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG_DIR/bridge.log"; }
 
 while true; do
-  cd "$REPO_DIR" 2>/dev/null || { sleep "$INTERVAL"; continue; }
+  if [ ! -d "$REPO_DIR/.git" ]; then
+    log "repository unavailable: $REPO_DIR"
+    sleep "$INTERVAL"
+    continue
+  fi
 
-  # Fast, deterministic GitHub sync. Discard only local bridge state so a
-  # stale rebase can never wedge the watcher.
-  if git fetch origin main >/dev/null 2>&1; then
-    git reset --hard origin/main >/dev/null 2>&1 || true
-  else
+  # Sync saves local queue/results first, then fetches/rebases/pushes. Never
+  # reset hard: a pending result must survive a temporary network outage.
+  if ! bash "$REPO_DIR/terhux-sync.sh"; then
     sleep "$INTERVAL"
     continue
   fi
@@ -23,7 +26,8 @@ while true; do
   command_file=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name '*.cmd' | sort | head -n1)
 
   if [ -n "$command_file" ] && [ -f "$command_file" ]; then
-    "$REPO_DIR/terhux-runner.sh" "$command_file" >/dev/null 2>&1 || true
+    log "processing request $(basename "$command_file" .cmd)"
+    bash "$REPO_DIR/terhux-runner.sh" "$command_file" >>"$LOG_DIR/bridge.log" 2>&1 || log "runner returned non-zero for $(basename "$command_file" .cmd)"
   fi
 
   sleep "$INTERVAL"

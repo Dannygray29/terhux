@@ -58,3 +58,21 @@ Submit an `ACTION=terhux-runner-version` request using the format in [AI_BRIDGE.
 - Keep the GitHub repository private and grant write access only to trusted AI agents. `APPROVED=true` in a request is not a separate human approval step.
 - Build/install actions may run code from project dependencies or `package.json`; do not use them on untrusted project content or while exposing credentials to the process.
 - Results are stored in Git history. Do not return secrets through command output.
+
+## Offline queue and recovery
+
+- Requests already committed on GitHub stay queued while the phone has no network; the worker processes them when it can sync again.
+- The phone sync helper stages local requests/results and retries fetch, rebase, and push without using `git reset --hard`. Failed publication attempts are recorded in `~/terhux/repo/logs/sync.log`; bridge activity is in `bridge.log`.
+- If the phone restarts or Android stops the process, Termux:Boot should start it again after the boot add-on has been initialized. Check the logs and submit a version-check request to verify recovery.
+- If an action may have taken effect before interruption, it might run again on recovery. Design tasks to be idempotent; verify deployments or other external changes before resubmitting.
+- These improvements cannot execute while the phone is off, restore erased phone storage, overcome a GitHub outage or revoked credentials, or defeat Android force-stop/OEM killing. Unsynced local results depend on the phone's Termux storage surviving.
+
+After updating the scripts in GitHub, restart the running bridge so the already-running shell process loads the new watcher:
+
+```bash
+pkill -f '[t]erhux-supervisor.sh' || true
+pkill -f '[t]erhux-watch.sh' || true
+cd ~/terhux/repo
+git pull --ff-only
+./terhux-start.sh
+```

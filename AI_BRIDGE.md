@@ -53,7 +53,9 @@ APPROVED=true
 
 ## Read the result
 
-The phone polls the `main` branch about every five seconds by default. Once processed, the request file is consumed and the result is committed at `results/<id>.result`. Read that result from GitHub and check `STATUS` and `EXIT_CODE`; never assume success from a notification alone.
+The phone polls the `main` branch about every five seconds by default. Requests committed while the phone is offline remain queued in GitHub. Once processed, the request file is consumed and the result is committed at `results/<id>.result`. If a push fails, the phone now retains local request/result changes and retries synchronization on later watcher cycles rather than hard-resetting them away. Read the result from GitHub and check `STATUS` and `EXIT_CODE`; never assume success from a notification alone.
+
+Delivery is **at least once**, not exactly once. If the phone or process stops after an action takes effect but before its result/acknowledgement is safely published, the request may be attempted again after recovery. Agents should prefer idempotent work and check for an existing effect before retrying requests that deploy, rename, or otherwise change external state.
 
 A successful response uses this format:
 

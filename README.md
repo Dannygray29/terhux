@@ -15,6 +15,8 @@ See [AI_BRIDGE.md](AI_BRIDGE.md) for the protocol and [docs/PHONE_HOST_SETUP.md]
 
 The environment is available only while the phone is powered on, has working internet, and Termux/the bridge process is running. Android may suspend or stop background apps; allow Termux background activity, exclude it from battery optimization, and install/configure Termux:Boot if it should resume after a phone reboot. A wake lock helps keep the CPU awake but cannot keep a powered-off phone or disconnected network online.
 
+Requests committed to GitHub remain queued while the phone is offline and can be processed after it reconnects. The updated sync helper also keeps local results and retries publishing them instead of resetting them away. This is **best-effort, at-least-once processing**, not an absolute uptime or exactly-once guarantee: a phone shutdown or interruption during an action can cause that action to run again. Avoid non-idempotent actions unless you can safely check for duplicates.
+
 The execution environment is Termux's Android Linux userland, **not** a GitHub-hosted VM or full Ubuntu server. Phone storage and installed packages persist on that device; they are not automatically backed up by GitHub.
 
 ## Start or check the phone worker
