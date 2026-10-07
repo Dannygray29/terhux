@@ -1,3 +1,5 @@
-Terhux is connected to GitHub.
-Status: ONLINE
-Bridge: INITIALIZING
+Terhux execution host: Android phone running Termux
+GitHub role: request queue and result storage only
+Availability: only while the phone is powered on, online, and the Termux worker is allowed to run
+Worker poll interval: 5 seconds by default
+Live status: submit ACTION=terhux-runner-version and check results/<id>.result
