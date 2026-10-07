@@ -24,4 +24,4 @@ Use GitHub's official remote MCP server:
 
 `https://api.githubcopilot.com/mcp/`
 
-Claude custom connectors support remote MCP servers. citeturn0search0turn0search2
+Claude custom connectors support remote MCP servers.
