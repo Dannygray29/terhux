@@ -23,12 +23,9 @@ while true; do
     continue
   fi
 
-  command_file=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name '*.cmd' | sort | head -n1)
-
-  if [ -n "$command_file" ] && [ -f "$command_file" ]; then
-    log "processing request $(basename "$command_file" .cmd)"
-    bash "$REPO_DIR/terhux-runner.sh" "$command_file" >>"$LOG_DIR/bridge.log" 2>&1 || log "runner returned non-zero for $(basename "$command_file" .cmd)"
-  fi
+  # Agents submit issues, not code commits. Only the owner-controlled phone
+  # worker can turn an encrypted issue into an allowlisted local action.
+  python3 "$REPO_DIR/terhux-issue-worker.py" >>"$LOG_DIR/bridge.log" 2>&1 || log "issue poll/worker returned non-zero"
 
   sleep "$INTERVAL"
 done

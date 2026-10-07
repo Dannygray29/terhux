@@ -1,102 +1,87 @@
 # Terhux AI Bridge Protocol
 
-# Terhux's worker runs on the owner's Android phone inside Termux. GitHub is only the shared request/result channel. An AI agent needs authorized access to this private repository; it does not get a Linux session merely by knowing the repository URL.
+Terhux runs on the owner's Android phone inside Termux. GitHub Issues are the request queue; the phone is the only execution host. Knowing the repository URL does not grant access.
+
+## Access requirements
+
+- The AI account must be invited to the private repository with **Triage** permission. Triage can create/comment on issues but cannot push runner code. Do **not** grant AI agents Write, Maintain, or Admin access.
+- The phone owner initializes a local access PIN and key pair with `bash terhux-auth-init.sh`. The phone stores its private key and a scrypt PIN verifier outside the repository in `~/.config/terhux/`; only the public certificate is committed as `terhux-access-cert.pem`.
+- A replacement phone that has the repository's public certificate but lacks the matching local private key must be initialized with `bash terhux-auth-init.sh --rotate`; this replaces the public certificate and invalidates requests encrypted to the old one.
+- If the AI does not have the PIN in its approved secret store, it must ask the owner privately. **Never put the PIN in an issue, repository file, or commit.** Do not paste the PIN into a public or shared channel.
+
+The phone wraps each request and PIN in an authenticated CMS AES-256-GCM envelope encrypted to the phone's public certificate. GitHub issue bodies contain only that ciphertext. The PIN is checked locally; failed attempts are rate-limited to 5 per GitHub identity and 20 total per rolling 24 hours. Short PINs remain weak against online guessing; use a longer random PIN.
 
 ## Submit a request
 
-Create a uniquely named file at `commands/<id>.cmd` on the repository's `main` branch. Use a filename ID containing only letters, digits, dots, underscores, or hyphens. Each request must use the structured fields below; do not send raw shell commands.
+Create a JSON file containing only structured request fields. Values must be strings. Use a unique `ID` of 1–80 letters, digits, dots, underscores, or hyphens, and include `APPROVED` set to the string `true`.
 
-Example health/version request:
+Example health/version request (`request.json`):
 
-```text
-ACTION=terhux-runner-version
-APPROVED=true
+```json
+{"ID":"health-20261007-a1","ACTION":"terhux-runner-version","APPROVED":"true"}
 ```
 
 Example file read:
 
-```text
-ACTION=project-read-file
-PROJECT=netboost
-PATH=README.md
-APPROVED=true
+```json
+{"ID":"read-20261007-b2","ACTION":"project-read-file","PROJECT":"netboost","PATH":"README.md","APPROVED":"true"}
 ```
 
 Example file write (base64-encode the UTF-8 file contents):
 
-```text
-ACTION=project-write-file
-PROJECT=netboost
-PATH=notes/agent.txt
-CONTENT_B64=<base64-encoded-content>
-APPROVED=true
+```json
+{"ID":"write-20261007-c3","ACTION":"project-write-file","PROJECT":"netboost","PATH":"notes/agent.txt","CONTENT_B64":"<base64-content>","APPROVED":"true"}
 ```
 
-`PROJECT` names a directory under the Termux home directory. `PATH` is relative to that project directory. Do not use absolute paths or `..` path traversal. The runner currently supports these action names:
+Use the repository's public helper to encrypt the request. `TERHUX_PIN` must come from the AI platform's protected secret store or from a private owner prompt; do not hard-code it in source or shell history.
+
+```bash
+node terhux-encrypt-request.js request.json > encrypted-body.txt
+gh issue create --repo Dannygray29/terhux \
+  --title "[Terhux] health-20261007-a1" \
+  --label terhux-request \
+  --body-file encrypted-body.txt
+rm -f encrypted-body.txt
+```
+
+The issue body must be the helper output, exactly as generated (`TERHUX_CMS_V1` and `PAYLOAD_B64=...`). Do not wrap it in Markdown fences or add plaintext request fields. The helper needs Node.js, OpenSSL 3.x, and the repository's current public certificate. It does not print the PIN or write plaintext to a file; it streams the payload to OpenSSL through stdin and emits only ciphertext.
+
+If the PIN is not available, ask the owner through a private channel. If a request is unsigned/malformed or has the wrong PIN, the phone does **not** execute it; it comments with a safe error and removes the request label. After receiving the PIN, create a fresh request with a new unique ID. Never retry an action under an ID whose result already exists.
+
+## Allowed actions
+
+`PROJECT` names a directory under the phone owner's Termux home. `PATH` is relative to that directory; absolute paths and `..` traversal are rejected.
 
 | Action | Required fields | Notes |
 |---|---|---|
-| `terhux-runner-version` | none | Harmless check that the phone worker processed a request. |
-| `project-read-file` | `PROJECT`, `PATH` | Reads a project file into the result. Do not read or return secrets. |
-| `project-write-file` | `PROJECT`, `PATH`, `CONTENT_B64` | Writes a project file. |
-| `project-replace` | `PROJECT`, `PATH`, `FROM_B64`, `TO_B64` | Replaces one exact text match in a project file. |
-| `project-install` | `PROJECT` | Runs `npm install` in the project. Dependency lifecycle scripts may execute. |
-| `project-npm-install` | `PROJECT`, `PACKAGE` | Installs a package as a development dependency; package scripts may execute. |
-| `project-build` | `PROJECT` | Runs `npm run build`; project scripts may execute. |
-| `project-test` | `PROJECT` | Runs `npm test`; project scripts may execute. |
-| `project-android` | `PROJECT` | Runs `npm run android`; project scripts may execute. |
-| `project-vercel-deploy` | `PROJECT` | Can publish/deploy the project; use only when the owner has authorized that deployment. |
-| `github-repo-rename` | `PROJECT`, `NEW_NAME` | Renames a GitHub repository; use only when the owner has authorized the change. |
-| `terhux2-bootstrap` | none | Legacy Termux service bootstrap action; do not use for ordinary requests. |
+| `terhux-runner-version` | `ID`, `ACTION`, `APPROVED` | Harmless worker check. |
+| `project-read-file` | plus `PROJECT`, `PATH` | Do not read or return secrets. |
+| `project-write-file` | plus `PROJECT`, `PATH`, `CONTENT_B64` | Writes a project file. |
+| `project-replace` | plus `PROJECT`, `PATH`, `FROM_B64`, `TO_B64` | Replaces one exact text match. |
+| `project-install` | plus `PROJECT` | Runs `npm install`; lifecycle scripts may execute. |
+| `project-npm-install` | plus `PROJECT`, `PACKAGE` | Installs a development dependency; package scripts may execute. |
+| `project-build` | plus `PROJECT` | Runs `npm run build`; project scripts may execute. |
+| `project-test` | plus `PROJECT` | Runs `npm test`; project scripts may execute. |
+| `project-android` | plus `PROJECT` | Runs `npm run android`; project scripts may execute. |
+| `project-vercel-deploy` | plus `PROJECT` | Can publish/deploy; use only with owner authorization. |
+| `github-repo-rename` | plus `PROJECT`, `NEW_NAME` | Renames a repository; use only with owner authorization. |
+| `terhux2-bootstrap` | `ID`, `ACTION`, `APPROVED` | Legacy service bootstrap; avoid for ordinary requests. |
 
-`APPROVED=true` is required by the runner but is **not** a human approval checkpoint. A request from an authorized writer can run without another person reviewing it. Build/install actions execute code from the project, and deploy/rename actions have external effects. Only give write access to trusted agents.
+There is no arbitrary shell-command action. `APPROVED=true` is a request-format check, **not** a separate human approval checkpoint. Only request work the owner has authorized.
 
-Long-running actions have a **600-second (10-minute) wall-time limit** by default; the phone owner can configure a different limit, capped at 1,800 seconds. Captured output is bounded (about 256 KiB by default). The runner terminates the action process group on timeout/output overflow and returns `STATUS=TIMEOUT` or `STATUS=OUTPUT_LIMIT`. The request is then consumed and its result is published. The action may have made partial changes before termination, so inspect the result and project/external state before retrying. Agents cannot raise the limit via a request field.
+## Results and limits
 
-These limits are a guard against accidental hangs, **not an OS sandbox**. Project code that deliberately daemonizes/detaches a child may escape process-group termination. Do not run untrusted project scripts or dependency lifecycle code on the phone.
+The phone polls labeled open issues about every five seconds. An issue waits while the phone is offline. After processing, the phone commits `results/<ID>.result`, comments on the issue with the status and result link, then closes the issue. If PIN setup is missing or authentication fails, the issue stays open without the queue label until a new encrypted request is submitted.
 
-## Read the result
+A successful result contains `STATUS=SUCCESS` and `EXIT_CODE=0`. Other statuses include `ERROR`, `BLOCKED`, `TIMEOUT`, and `OUTPUT_LIMIT`. Long-running project actions default to a 600-second limit (owner-configurable to at most 1,800 seconds); captured output is bounded. Timeouts can leave partial side effects—inspect before retrying. These limits are not a sandbox; deliberately detached project processes may outlive the command.
 
-The phone polls the `main` branch about every five seconds by default. Requests committed while the phone is offline remain queued in GitHub. Once processed, the request file is consumed and the result is committed at `results/<id>.result`. If a push fails, the phone now retains local request/result changes and retries synchronization on later watcher cycles rather than hard-resetting them away. Read the result from GitHub and check `STATUS` and `EXIT_CODE`; never assume success from a notification alone.
+Issue processing is sequential and best-effort. The bridge is available only when the phone, Termux, GitHub credentials, and network are working. It is not a GitHub-hosted VM and cannot execute while the phone is off.
 
-Delivery is **at least once**, not exactly once. If the phone or process stops after an action takes effect but before its result/acknowledgement is safely published, the request may be attempted again after recovery. Agents should prefer idempotent work and check for an existing effect before retrying requests that deploy, rename, or otherwise change external state.
+## Security rules
 
-A successful response uses this format:
-
-```text
-TERHUX_RESULT_V1
-ID=<id>
-ACTION=<action>
-PROJECT=<project>
-PATH=<path>
-APPROVED=true
-STATUS=SUCCESS
-EXIT_CODE=0
-TIME=<unix timestamp>
-STDOUT_BEGIN
-<output>
-STDOUT_END
-STDERR_BEGIN
-<errors>
-STDERR_END
-```
-
-Other statuses include `ERROR`, `BLOCKED`, `TIMEOUT`, and `OUTPUT_LIMIT`. If the result does not arrive, the phone may be offline, Termux may have been suspended/stopped, or the worker may lack GitHub connectivity/credentials. GitHub does not host a spare always-on worker.
-
-## Security and availability rules for agents
-
-1. Use a unique request ID and only the documented `ACTION=` protocol.
-2. Never send `COMMAND=`, `COMMAND_B64=`, or arbitrary shell code; the legacy raw-shell protocol is disabled.
-3. Do not place credentials, tokens, private keys, or other secrets in request files or results.
-4. Only read or modify files that the task owner has authorized.
-5. Use deploy/rename actions only with the owner's explicit authorization.
-6. A result is available only when the phone and Termux bridge are online and able to reach GitHub.
-
-Historical transport test from the repository:
-
-```
-ID=watcher-test
-STATUS=SUCCESS
-EXIT_CODE=0
-TERHUX_WATCHER_OK
-```
+1. Use a unique ID and only the documented action allowlist.
+2. Never place the PIN, tokens, private keys, or credentials in an issue or repository file.
+3. Do not submit raw shell commands or arbitrary code.
+4. Only access project files and external services the owner has authorized.
+5. Never grant the AI account code-write permissions on the execution repository.
+6. A completed action may have partial external effects; do not blindly resubmit after `TIMEOUT` or `OUTPUT_LIMIT`.
