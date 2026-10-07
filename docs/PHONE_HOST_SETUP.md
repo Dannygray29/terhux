@@ -1,78 +1,15 @@
-# Phone-host setup and uptime
 
-Terhux executes in Termux on the Android phone. GitHub carries requests and results but does not keep the phone worker alive. Follow this setup on the phone; changes in this document alone cannot change Android settings remotely.
+## Long-running actions and timeouts
 
-## 1. Install and prepare Termux
+Project build/test/install/deploy actions use a 600-second default wall-time limit. On timeout, the runner sends `TERM` to the command process group and escalates to `KILL` after five seconds. Captured output is capped (256 blocks by default) so a noisy loop cannot fill storage with logs. Results use `STATUS=TIMEOUT` or `STATUS=OUTPUT_LIMIT`; the phone worker then returns to polling the queue.
 
-- Install Termux from a trusted distribution source and install the Termux:Boot add-on from the **same signing source**.
-- Open Termux:Boot once after installation so Android registers the add-on.
-- Keep the phone powered on and connected to the internet. For reliable long-running operation, leave it charging when practical.
-- Install the tools the bridge needs in Termux (at minimum Git and the utilities used by the repository scripts), and configure GitHub authentication in Termux without placing credentials in the repository.
-- Clone Terhux to the path expected by the scripts: `~/terhux/repo`.
-
-## 2. Start the bridge
-
-In Termux:
+The phone owner may set `TERHUX_ACTION_TIMEOUT_SECONDS` before starting the supervisor, for example:
 
 ```bash
-cd ~/terhux/repo
-git pull --ff-only
-chmod +x ./*.sh
+export TERHUX_ACTION_TIMEOUT_SECONDS=900
 ./terhux-start.sh
 ```
 
-The supervisor and watcher keep polling GitHub; the supervisor requests a Termux wake lock when `termux-wake-lock` is installed. The normal polling interval is five seconds (`TERHUX_INTERVAL` can override it for `terhux-watch.sh`).
+For reboot persistence, put the export in `~/.termux/boot/start-terhux` before the line that starts Terhux. Values are clamped to a maximum of 1,800 seconds; an AI request cannot change the limit. Install GNU coreutils (`pkg install coreutils`) so `timeout` is available. If `timeout` is missing, long-running actions fail closed instead of running unbounded.
 
-## 3. Start automatically after a reboot
-
-Termux:Boot runs executable scripts placed in `~/.termux/boot/`. After opening Termux:Boot once, install the repository's boot script:
-
-```bash
-mkdir -p ~/.termux/boot
-cp ~/terhux/repo/boot/start-terhux ~/.termux/boot/start-terhux
-chmod +x ~/.termux/boot/start-terhux
-```
-
-Then reboot the phone and check `~/terhux/repo/logs/boot.log` and `~/terhux/repo/logs/supervisor.log` after Termux is available. Official instructions: [Termux:Boot](https://github.com/termux/termux-boot).
-
-## 4. Allow background operation
-
-Android settings vary by manufacturer and version. In the phone's app settings for Termux (and Termux:Boot, if shown):
-
-- Set battery use to **Unrestricted** / **Don't optimize** or the equivalent.
-- Allow background activity and background data.
-- Enable the manufacturer's **Auto-start** / **Allow background launch** option if present.
-- Do not force-stop Termux; a force-stopped app may not restart until opened manually.
-- Keep Wi-Fi/mobile data available in the background and disable any battery saver setting that pauses Termux.
-
-A wake lock reduces CPU suspension while the process is running; it cannot prevent shutdown, loss of network, OEM task killing, app force-stop, or all Android power-management behavior. No phone-hosted service can be available while the phone itself is offline.
-
-## 5. Verify from GitHub
-
-Submit an `ACTION=terhux-runner-version` request using the format in [AI_BRIDGE.md](../AI_BRIDGE.md). When the bridge is healthy, the phone consumes the request and writes `results/<id>.result`. If no result appears, check the phone's logs, network connection, GitHub authentication, and Android background restrictions.
-
-## Operational and security notes
-
-- The process runs under the Termux app's Android user, not as Android root.
-- The phone is the only execution host in this setup; if it is offline, no request is processed until it reconnects.
-- Keep the GitHub repository private and grant write access only to trusted AI agents. `APPROVED=true` in a request is not a separate human approval step.
-- Build/install actions may run code from project dependencies or `package.json`; do not use them on untrusted project content or while exposing credentials to the process.
-- Results are stored in Git history. Do not return secrets through command output.
-
-## Offline queue and recovery
-
-- Requests already committed on GitHub stay queued while the phone has no network; the worker processes them when it can sync again.
-- The phone sync helper stages local requests/results and retries fetch, rebase, and push without using `git reset --hard`. Failed publication attempts are recorded in `~/terhux/repo/logs/sync.log`; bridge activity is in `bridge.log`.
-- If the phone restarts or Android stops the process, Termux:Boot should start it again after the boot add-on has been initialized. Check the logs and submit a version-check request to verify recovery.
-- If an action may have taken effect before interruption, it might run again on recovery. Design tasks to be idempotent; verify deployments or other external changes before resubmitting.
-- These improvements cannot execute while the phone is off, restore erased phone storage, overcome a GitHub outage or revoked credentials, or defeat Android force-stop/OEM killing. Unsynced local results depend on the phone's Termux storage surviving.
-
-After updating the scripts in GitHub, restart the running bridge so the already-running shell process loads the new watcher:
-
-```bash
-pkill -f '[t]erhux-supervisor.sh' || true
-pkill -f '[t]erhux-watch.sh' || true
-cd ~/terhux/repo
-git pull --ff-only
-./terhux-start.sh
-```
+A timeout cannot roll back changes already made by a project script or external service. Agents should inspect state before retrying a timed-out deploy, rename, build that writes files, or other side-effecting action.

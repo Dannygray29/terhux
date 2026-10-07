@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -u
-REPO_DIR="$HOME/terhux/repo"; COMMAND_DIR="$REPO_DIR/commands"; RESULT_DIR="$REPO_DIR/results"
+REPO_DIR="${TERHUX_REPO_DIR:-$HOME/terhux/repo}"; COMMAND_DIR="$REPO_DIR/commands"; RESULT_DIR="$REPO_DIR/results"
 mkdir -p "$COMMAND_DIR" "$RESULT_DIR"
 command_file="${1:-}"; [ -n "$command_file" ] || command_file=$(find "$COMMAND_DIR" -maxdepth 1 -type f -name '*.cmd' | sort | head -n1)
 [ -n "$command_file" ] && [ -f "$command_file" ] || exit 0
@@ -9,6 +9,15 @@ action=$(printf '%s\n' "$raw"|sed -n 's/^ACTION=//p'|head -n1); project=$(printf
 status=SUCCESS; exit_code=0; stdout=""; stderr=""
 [ "$approved" = true ] || { status=BLOCKED; stderr="APPROVED=true is required."; }
 [ -n "$action" ] || { status=BLOCKED; stderr="ACTION is required."; }
+run_timed_action() {
+  local workdir="$1"; shift
+  stdout=$(bash "$REPO_DIR/terhux-exec.sh" "$workdir" "$@" 2>&1)
+  exit_code=$?
+  case "$exit_code" in
+    124|137) status=TIMEOUT; stderr="Action exceeded its wall-time limit and was terminated. Check for partial external effects before retrying.";;
+    122) status=OUTPUT_LIMIT; stderr="Action exceeded the captured-output limit and was interrupted. Check for partial external effects before retrying.";;
+  esac
+}
 valid_project() { [ -n "$project" ] && [[ "$project" =~ ^[A-Za-z0-9._-]+$ ]]; }
 project_dir="$HOME/$project"
 if [ "$status" = SUCCESS ]; then
@@ -18,18 +27,18 @@ github-repo-rename)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   new_name=$(printf '%s\n' "$raw"|sed -n 's/^NEW_NAME=//p'|head -n1)
   [[ "$new_name" =~ ^[A-Za-z0-9._-]+$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid repository name."; }
-  [ "$status" = SUCCESS ] && { stdout=$(gh repo rename "$new_name" --repo "Dannygray29/$project" --yes 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$REPO_DIR" gh repo rename "$new_name" --repo "Dannygray29/$project" --yes;;
 project-vercel-deploy)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npx vercel --prod --yes 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$project_dir" npx vercel --prod --yes;;
 project-install)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$project_dir" npm install;;
 project-npm-install)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   package_name=$(printf '%s\n' "$raw"|sed -n 's/^PACKAGE=//p'|head -n1)
   [[ "$package_name" =~ ^@?[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?(@[A-Za-z0-9._-]+)?$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid package name."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm install "$package_name" --save-dev 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$project_dir" npm install "$package_name" --save-dev;;
 project-read-file)
   valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
   [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; case "$rel_path" in /*|*../*|../*) status=BLOCKED; exit_code=1; stderr="Unsafe path.";; esac; [ -f "$target" ] || { status=BLOCKED; exit_code=1; stderr="File not found."; }; }
@@ -56,13 +65,13 @@ project-write-file)
   [ "$status" = SUCCESS ] && { target="$project_dir/$rel_path"; mkdir -p "$(dirname "$target")"; printf '%s' "$content_b64" | base64 -d >"$target" 2>/dev/null || { status=ERROR; exit_code=1; stderr="Invalid base64 content."; }; };;
 project-build)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run build 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$project_dir" npm run build;;
 project-test)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm test 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$project_dir" npm test;;
 project-android)
   valid_project && [ -d "$project_dir" ] || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
-  [ "$status" = SUCCESS ] && { stdout=$(cd "$project_dir" && npm run android 2>&1); exit_code=$?; };;
+  [ "$status" = SUCCESS ] && run_timed_action "$project_dir" npm run android;;
 terhux2-bootstrap)
   [ "$status" = SUCCESS ] && {
     BASE="$HOME/terhux2"; REPO="$BASE/repo"; SERVICE="$PREFIX/var/service/terhux2"
@@ -100,7 +109,7 @@ REPO=$REPO"
 *) status=BLOCKED; exit_code=1; stderr="Action is not on the Terhux core allowlist.";;
 esac
 fi
-[ "$exit_code" -eq 0 ] || [ "$status" = BLOCKED ] || status=ERROR
+[ "$exit_code" -eq 0 ] || [ "$status" = BLOCKED ] || [ "$status" = TIMEOUT ] || [ "$status" = OUTPUT_LIMIT ] || status=ERROR
 { echo TERHUX_RESULT_V1; echo "ID=$id"; echo "ACTION=$action"; echo "PROJECT=$project"; echo "PATH=$rel_path"; echo "APPROVED=$approved"; echo "STATUS=$status"; echo "EXIT_CODE=$exit_code"; echo "TIME=$(date +%s)"; echo STDOUT_BEGIN; printf '%s\n' "$stdout"; echo STDOUT_END; echo STDERR_BEGIN; printf '%s\n' "$stderr"; echo STDERR_END; } >"$RESULT_DIR/$id.result"
 rm -f "$command_file"
 git -C "$REPO_DIR" add commands results >/dev/null 2>&1||true

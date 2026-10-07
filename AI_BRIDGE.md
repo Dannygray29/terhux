@@ -51,6 +51,10 @@ APPROVED=true
 
 `APPROVED=true` is required by the runner but is **not** a human approval checkpoint. A request from an authorized writer can run without another person reviewing it. Build/install actions execute code from the project, and deploy/rename actions have external effects. Only give write access to trusted agents.
 
+Long-running actions have a **600-second (10-minute) wall-time limit** by default; the phone owner can configure a different limit, capped at 1,800 seconds. Captured output is bounded (about 256 KiB by default). The runner terminates the action process group on timeout/output overflow and returns `STATUS=TIMEOUT` or `STATUS=OUTPUT_LIMIT`. The request is then consumed and its result is published. The action may have made partial changes before termination, so inspect the result and project/external state before retrying. Agents cannot raise the limit via a request field.
+
+These limits are a guard against accidental hangs, **not an OS sandbox**. Project code that deliberately daemonizes/detaches a child may escape process-group termination. Do not run untrusted project scripts or dependency lifecycle code on the phone.
+
 ## Read the result
 
 The phone polls the `main` branch about every five seconds by default. Requests committed while the phone is offline remain queued in GitHub. Once processed, the request file is consumed and the result is committed at `results/<id>.result`. If a push fails, the phone now retains local request/result changes and retries synchronization on later watcher cycles rather than hard-resetting them away. Read the result from GitHub and check `STATUS` and `EXIT_CODE`; never assume success from a notification alone.
@@ -77,7 +81,7 @@ STDERR_BEGIN
 STDERR_END
 ```
 
-Other statuses include `ERROR` and `BLOCKED`. If the result does not arrive, the phone may be offline, Termux may have been suspended/stopped, or the worker may lack GitHub connectivity/credentials. GitHub does not host a spare always-on worker.
+Other statuses include `ERROR`, `BLOCKED`, `TIMEOUT`, and `OUTPUT_LIMIT`. If the result does not arrive, the phone may be offline, Termux may have been suspended/stopped, or the worker may lack GitHub connectivity/credentials. GitHub does not host a spare always-on worker.
 
 ## Security and availability rules for agents
 
