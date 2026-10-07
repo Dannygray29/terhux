@@ -88,4 +88,11 @@ REVIEW_MODE=read-only-static"
   } > "$RESULTS/$id.result"
 
   rm -f "$cmd"
+  git -C "$ROOT" add commands results >/dev/null 2>&1 || true
+  git -C "$ROOT" commit -m "Terhux 2 result: $id" >/dev/null 2>&1 || true
+  for attempt in 1 2 3 4 5; do
+    if git -C "$ROOT" fetch origin terhux2 >/dev/null 2>&1 && git -C "$ROOT" rebase origin/terhux2 >/dev/null 2>&1 && git -C "$ROOT" push origin HEAD:terhux2 >/dev/null 2>&1; then break; fi
+    git -C "$ROOT" rebase --abort >/dev/null 2>&1 || true
+    sleep 2
+  done
 done
