@@ -87,6 +87,7 @@ class handler(BaseHTTPRequestHandler):
         if self.path == "/v1/jobs":
             agent_id = payload.get("agent_id")
             command = payload.get("command")
+            project = payload.get("project")
             if not isinstance(agent_id, str) or not agent_id.strip():
                 self.send_json(400, {"ok": False, "error": "agent_id_required"})
                 return
@@ -96,11 +97,17 @@ class handler(BaseHTTPRequestHandler):
             if not isinstance(command, str) or not command.strip():
                 self.send_json(400, {"ok": False, "error": "command_required"})
                 return
+            if project is not None and (
+                not isinstance(project, str) or len(project) > 128
+            ):
+                self.send_json(400, {"ok": False, "error": "invalid_project"})
+                return
 
             job_id = uuid.uuid4().hex
             job = {
                 "id": job_id,
                 "agent_id": agent_id,
+                "project": project,
                 "command": command,
                 "cwd": payload.get("cwd"),
                 "timeout": payload.get("timeout"),
