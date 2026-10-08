@@ -1,0 +1,56 @@
+TERHUX_RESULT_V1
+ID=issue-12
+ACTION=project-read-file
+PROJECT=netboost
+PATH=src/main.tsx
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791457254
+STDOUT_BEGIN
+import React,{useEffect,useState}from"react";
+import{createRoot}from"react-dom/client";
+import{Activity,Network,RefreshCw}from"lucide-react";
+import{getNetworkSnapshot,runMeasurement}from"./engine/measure";
+import{diagnose}from"./engine/diagnostics";
+import type{NetworkSnapshot,TestResult}from"./types/network";
+import"./styles.css";
+
+const fmt=(v:number|null|undefined)=>v==null?"—":`${Math.round(v)} ms`;
+
+function App(){
+  const[snap,setSnap]=useState<NetworkSnapshot|null>(null);
+  const[result,setResult]=useState<TestResult|null>(null);
+  const[busy,setBusy]=useState(false);
+  const[step,setStep]=useState("");
+  useEffect(()=>{getNetworkSnapshot().then(setSnap).catch(()=>setSnap(null));},[]);
+  async function test(){
+    setBusy(true);setStep("Measuring…");
+    try{
+      const m=await runMeasurement(setStep);
+      setResult({...m,...diagnose(m)} as TestResult);
+    }finally{setBusy(false);setStep("");}
+  }
+  return <div className="app">
+    <header><div className="brand"><div className="logo"><Network size={22}/></div><div><b>NetBoost</b><small>Network intelligence</small></div></div><div className="status"><span className="dot"/>{snap?.connectionType||"Network"}</div></header>
+    <main>
+      <section className="hero"><div><span className="eyebrow">CURRENT CONNECTION</span><h1>{result?.grade||"Ready to test"}</h1><p>{result?`${result.score}/100 connection quality score`:"Measure your real connection before changing anything."}</p></div></section>
+      <div className="grid">
+        <Metric label="Latency" value={fmt(result?.latencyMs??snap?.rttMs)}/>
+        <Metric label="Jitter" value={fmt(result?.jitterMs)}/>
+        <Metric label="Packet loss" value={result?.packetLossPct==null?"—":`${result.packetLossPct.toFixed(1)}%`}/>
+        <Metric label="DNS" value={fmt(result?.dnsMs)}/>
+        <Metric label="Download" value={result?.downloadMbps==null?"—":`${result.downloadMbps.toFixed(1)} Mbps`}/>
+        <Metric label="Upload" value={result?.uploadMbps==null?"—":`${result.uploadMbps.toFixed(1)} Mbps`}/>
+      </div>
+      <button className="primary" disabled={busy} onClick={test}>{busy?<><RefreshCw className="spin"/>{step||"Testing…"}</>:<><Activity/>Run Network Test</>}</button>
+      {result&&<><section className="card"><h3>What the test says</h3>{result.explanations?.map((x,i)=><p key={i}>• {x}</p>)}</section><section class=="card"><h3>Recommended actions</h3>{result.recommendations?.map((x,i)=><p key={i}>• {x}</p>)}</section></>}
+    </main>
+  </div>
+}
+function Metric({label,value}:{label:string,value:string}){return <div className="metric"><small>{label}</small><strong>{value}</strong></div>}
+createRoot(document.getElementById("root")!).render(<App/>);
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
