@@ -6,7 +6,7 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler
 
-TOKEN = os.environ.get("TERHUX_RELAY_TOKEN", "")
+TOKEN = os.environ.get("TERHUX_RELAY_TOKEN", "")\nAGENT_TOKEN = os.environ.get("TERHUX_AGENT_TOKEN", "")
 JOBS: dict[str, dict] = {}
 TTL = 3600
 ALLOWED_AGENTS = {"termux-phone"}
@@ -17,7 +17,7 @@ def auth(handler: BaseHTTPRequestHandler) -> bool:
     return bool(TOKEN) and value == "Bearer " + TOKEN
 
 
-def clean() -> None:
+def agent_auth(handler: BaseHTTPRequestHandler) -> bool:\n    value = handler.headers.get("Authorization", "")\n    return bool(AGENT_TOKEN) and value == "Bearer " + AGENT_TOKEN\n\n\ndef clean() -> None:
     cutoff = time.time() - TTL
     for job_id, job in list(JOBS.items()):
         if job.get("created_at", 0) < cutoff:
@@ -84,6 +84,25 @@ class handler(BaseHTTPRequestHandler):
             return
 
         parts = self.path.strip("/").split("/")
+        if self.path == "/v1/agent/jobs":
+            if not agent_auth(self):
+                self.send_json(401, {"ok": False, "error": "agent_unauthorized"})
+                return
+            agent_id = "termux-phone"
+            command = payload.get("command")
+            project = payload.get("project")
+            if not isinstance(command, str) or not command.strip():
+                self.send_json(400, {"ok": False, "error": "command_required"})
+                return
+            if project is not None and (not isinstance(project, str) or len(project) > 128):
+                self.send_json(400, {"ok": False, "error": "invalid_project"})
+                return
+            job_id = uuid.uuid4().hex
+            job = {"id": job_id, "agent_id": agent_id, "project": project, "command": command, "cwd": payload.get("cwd"), "timeout": payload.get("timeout"), "status": "queued", "created_at": time.time()}
+            JOBS[job_id] = job
+            self.send_json(202, {"ok": True, "id": job_id, "status": "queued"})
+            return
+
         if self.path == "/v1/jobs":
             agent_id = payload.get("agent_id")
             command = payload.get("command")
