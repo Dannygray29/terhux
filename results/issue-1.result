@@ -1,0 +1,28 @@
+TERHUX_RESULT_V1
+ID=issue-1
+ACTION=terhux-runtime-status
+PROJECT=
+PATH=
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791453291
+STDOUT_BEGIN
+TERHUX_RUNTIME_STATUS_V1
+SUPERVISOR:
+23673 /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/terhux/repo/terhux-supervisor.sh
+WATCHER:
+24021 /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/terhux/repo/terhux-watch.sh
+ISSUE_WORKER:
+9366 python3 /data/data/com.termux/files/home/terhux/repo/terhux-issue-worker.py
+LEGACY_WORKER:
+LEGACY_AI_AGENT:
+TERHUX2:
+RUNIT_TERHUX:
+run: terhux: (pid 23673) 21637s
+RUNIT_TERHUX2:
+down: terhux2: 18778s
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
