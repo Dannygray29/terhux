@@ -31,8 +31,7 @@ git pull --ff-only
 Run this one command in Termux:
 
 ```bash
-cd ~/terhux/repo
-bash ./terhux-activate.sh
+cd ~/terhux/repo && git pull --ff-only origin main && bash ./terhux-activate.sh
 ```
 
 It preserves pending local queue/results, pulls the latest `main`, installs the boot launcher, and starts the supervisor/worker. **There is no PIN, certificate, encryption helper, or Actions-secret setup.** The `gh` login on the phone is used for polling Issues and syncing results.
