@@ -8,6 +8,8 @@ Claude -> GitHub MCP -> Claude-Terhux issue -> GitHub Actions -> encrypted issue
 
 The workflow requires the repository Actions secret `TERHUX_PIN`. The secret is never committed and is not exposed to Claude. GitHub Actions secrets are intended for sensitive workflow credentials. citeturn1search0turn1search2
 
+**Authorization note:** this gateway automatically encrypts every matching issue with the Actions secret; Claude does not have to know or enter the PIN. Therefore, the practical authorization boundary for this gateway is who can open issues in the private repository (for example, Triage collaborators), not a per-request password prompt. Invite only agents trusted to submit actions. If every agent must be prompted for the PIN, use the direct client-side encrypted protocol in `AI_BRIDGE.md` instead of this automatic gateway.
+
 The phone's public certificate must exist at `terhux-access-cert.pem`; the private key and PIN verifier remain under the phone's local `~/.config/terhux/`.
 
 Claude should create issues with:

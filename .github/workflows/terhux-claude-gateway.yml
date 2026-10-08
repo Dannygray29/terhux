@@ -61,16 +61,21 @@ jobs:
           import json, os
           fields=json.load(open("request.json"))
           pin=os.environ["TERHUX_PIN"]
-          print(json.dumps({
+          if not 4 <= len(pin.encode("utf-8")) <= 64:
+              raise SystemExit("Configured PIN must be 4-64 bytes.")
+          cleartext=json.dumps({
               "protocol":"TERHUX_ISSUE_V1",
               "pin":pin,
               "fields":fields
-          }, separators=(",",":")))
+          }, separators=(",",":"))
+          if len(cleartext.encode("utf-8")) > 32000:
+              raise SystemExit("Encrypted request payload exceeds 32 KB.")
+          print(cleartext)
           PY
           )"
 
           printf '%s' "$cleartext" |
-            openssl cms -encrypt -binary -aes-256-gcm               -in /dev/stdin -outform DER terhux-access-cert.pem               > encrypted.der
+            openssl cms -encrypt -binary -aes-256-gcm -in - -outform DER terhux-access-cert.pem > encrypted.der
 
           {
             printf '%s\n' 'TERHUX_CMS_V1'
