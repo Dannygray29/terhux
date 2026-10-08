@@ -4,7 +4,7 @@ import json
 import os
 import time
 import uuid
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 
 TOKEN = os.environ.get("TERHUX_RELAY_TOKEN", "")
 JOBS: dict[str, dict] = {}
@@ -23,11 +23,12 @@ def clean() -> None:
             JOBS.pop(job_id, None)
 
 
-class Handler(BaseHTTPRequestHandler):
+class handler(BaseHTTPRequestHandler):
     def send_json(self, status: int, payload: dict) -> None:
         raw = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
@@ -40,6 +41,7 @@ class Handler(BaseHTTPRequestHandler):
         if not auth(self):
             self.send_json(401, {"ok": False, "error": "unauthorized"})
             return
+
         parts = self.path.strip("/").split("/")
         if len(parts) == 4 and parts[:2] == ["v1", "agents"] and parts[3] == "next":
             agent_id = parts[2]
@@ -50,21 +52,30 @@ class Handler(BaseHTTPRequestHandler):
                     return
             self.send_json(200, {"job": None})
             return
+
         if len(parts) == 3 and parts[:2] == ["v1", "jobs"]:
             job = JOBS.get(parts[2])
             self.send_json(200 if job else 404, job or {"error": "not_found"})
             return
+
         self.send_json(404, {"ok": False, "error": "not_found"})
 
     def do_POST(self) -> None:
         if not auth(self):
             self.send_json(401, {"ok": False, "error": "unauthorized"})
             return
+
         clean()
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.send_json(400, {"ok": False, "error": "invalid_content_length"})
+            return
+
         if length > 32768:
             self.send_json(413, {"ok": False, "error": "payload_too_large"})
             return
+
         try:
             payload = json.loads(self.rfile.read(length) or b"{}")
         except Exception:
@@ -81,6 +92,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(command, str) or not command.strip():
                 self.send_json(400, {"ok": False, "error": "command_required"})
                 return
+
             job_id = uuid.uuid4().hex
             job = {
                 "id": job_id,
@@ -107,8 +119,3 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self.send_json(404, {"ok": False, "error": "not_found"})
-
-
-def handler(request):
-    # Vercel Python adapter entrypoint.
-    return ThreadingHTTPServer
