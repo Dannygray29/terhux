@@ -218,8 +218,8 @@ def main() -> int:
         return 1
     try:
         listed = gh([
-            "issue", "list", "--state", "open", "--label", LABEL,
-            "--limit", "1", "--search", "sort:created-asc",
+            "issue", "list", "--state", "open",
+            "--limit", "1", "--search", "sort:created-asc in:title [Terhux]",
             "--json", "number,title,body",
         ])
     except (OSError, subprocess.TimeoutExpired) as exc:
