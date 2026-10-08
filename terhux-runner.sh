@@ -25,7 +25,8 @@ if [ "$status" = SUCCESS ]; then
 case "$action" in
 terhux-runner-version) stdout="TERHUX_RUNNER_OK";;
 terhux-runtime-status)
-  {
+  stdout=$(
+    {
     echo "TERHUX_RUNTIME_STATUS_V1"
     echo "SUPERVISOR:"
     pgrep -af "[t]erhux-supervisor.sh" || true
@@ -43,7 +44,9 @@ terhux-runtime-status)
     command -v sv >/dev/null 2>&1 && sv status terhux 2>&1 || echo unavailable
     echo "RUNIT_TERHUX2:"
     command -v sv >/dev/null 2>&1 && sv status terhux2 2>&1 || echo unavailable
-  };
+    }
+  )
+  ;;
 github-repo-rename)
   valid_project_name || { status=BLOCKED; exit_code=1; stderr="Invalid or missing repository name."; }
   new_name=$(printf '%s\n' "$raw"|sed -n 's/^NEW_NAME=//p'|head -n1)
