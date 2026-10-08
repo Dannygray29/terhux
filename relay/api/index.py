@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler
 TOKEN = os.environ.get("TERHUX_RELAY_TOKEN", "")
 JOBS: dict[str, dict] = {}
 TTL = 3600
+ALLOWED_AGENTS = {"termux-phone"}
 
 
 def auth(handler: BaseHTTPRequestHandler) -> bool:
@@ -88,6 +89,9 @@ class handler(BaseHTTPRequestHandler):
             command = payload.get("command")
             if not isinstance(agent_id, str) or not agent_id.strip():
                 self.send_json(400, {"ok": False, "error": "agent_id_required"})
+                return
+            if agent_id not in ALLOWED_AGENTS:
+                self.send_json(403, {"ok": False, "error": "agent_not_allowed"})
                 return
             if not isinstance(command, str) or not command.strip():
                 self.send_json(400, {"ok": False, "error": "command_required"})
