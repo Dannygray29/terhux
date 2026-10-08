@@ -1,0 +1,47 @@
+TERHUX_RESULT_V1
+ID=issue-5
+ACTION=project-read-file
+PROJECT=netboost
+PATH=package.json
+APPROVED=true
+STATUS=SUCCESS
+EXIT_CODE=0
+TIME=1791456163
+STDOUT_BEGIN
+{
+  "name": "netboost",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "cap:sync": "npm run build && cap sync",
+    "android": "npm run build && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/network": "^8.0.0",
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "jsdom": "latest",
+    "typescript": "^6.0.3",
+    "vitest": "latest"
+  }
+}
+STDOUT_END
+STDERR_BEGIN
+
+STDERR_END
