@@ -16,16 +16,12 @@ while true; do
     continue
   fi
 
-  # Sync saves local queue/results first, then fetches/rebases/pushes. Never
-  # reset hard: a pending result must survive a temporary network outage.
-  if ! bash "$REPO_DIR/terhux-sync.sh"; then
-    sleep "$INTERVAL"
-    continue
-  fi
-
-  # Agents submit labeled structured issues, not code commits. Only the
-  # owner-controlled phone worker can pass a request to the action allowlist.
+  # Intake must never depend on a successful git sync. GitHub Issues are
+  # polled directly by the worker; the worker syncs results after execution.
   python3 "$REPO_DIR/terhux-issue-worker.py" >>"$LOG_DIR/bridge.log" 2>&1 || log "issue poll/worker returned non-zero"
+
+  # Sync queued commands/results whenever possible. Failure is retried next loop.
+  bash "$REPO_DIR/terhux-sync.sh" >>"$LOG_DIR/bridge.log" 2>&1 || log "sync returned non-zero; retrying"
 
   sleep "$INTERVAL"
 done
