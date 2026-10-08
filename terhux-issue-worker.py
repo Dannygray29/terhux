@@ -131,9 +131,14 @@ def runner_result(request_id: str, command_text: str) -> Path:
         start_new_session=True,
         env=os.environ.copy(),
     )
-    try:
-        process.wait(timeout=1900)
-    except subprocess.TimeoutExpired:
+    deadline = time.monotonic() + 1900
+    while time.monotonic() < deadline:
+        if result_file.is_file():
+            return result_file
+        if process.poll() is not None:
+            break
+        time.sleep(2)
+    if not result_file.is_file():
         try:
             os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
@@ -219,8 +224,7 @@ def main() -> int:
     try:
         listed = gh([
             "issue", "list", "--state", "open",
-            "--limit", "1", "--search", "sort:created-asc in:title [Terhux]",
-            "--json", "number,title,body",
+            "--limit", "100", "--json", "number,title,body",
         ])
     except (OSError, subprocess.TimeoutExpired) as exc:
         log(f"issue poll failed: {type(exc).__name__}")
@@ -235,8 +239,15 @@ def main() -> int:
         return 1
     if not isinstance(issues, list) or not issues:
         return 0
+    requests = [
+        issue for issue in issues
+        if isinstance(issue, dict) and str(issue.get("title") or "").startswith("[Terhux]")
+    ]
+    if not requests:
+        return 0
+    requests.sort(key=lambda issue: int(issue.get("number", 0)))
     try:
-        process_issue(issues[0])
+        process_issue(requests[0])
     except (OSError, subprocess.TimeoutExpired, KeyError, ValueError) as exc:
         log(f"issue processing failed: {type(exc).__name__}")
         return 1
