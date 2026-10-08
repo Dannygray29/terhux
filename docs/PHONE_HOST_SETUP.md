@@ -23,7 +23,9 @@ Clone the private repository if it is not present, or update the existing checko
 gh repo clone Dannygray29/terhux ~/terhux/repo
 # Existing checkout:
 cd ~/terhux/repo
-git pull --ff-only
+bash ./terhux-sync.sh
+git fetch origin main
+git merge --ff-only FETCH_HEAD
 ```
 
 ## 2. Activate the bridge once
@@ -31,7 +33,7 @@ git pull --ff-only
 Run this one command in Termux:
 
 ```bash
-cd ~/terhux/repo && git pull --ff-only origin main && bash ./terhux-activate.sh
+cd ~/terhux/repo && bash ./terhux-sync.sh && git fetch origin main && git merge --ff-only FETCH_HEAD && bash ./terhux-activate.sh
 ```
 
 It preserves pending local queue/results, pulls the latest `main`, installs the boot launcher, and starts the supervisor/worker. **There is no PIN, certificate, encryption helper, or Actions-secret setup.** The `gh` login on the phone is used for polling Issues and syncing results.
@@ -50,7 +52,7 @@ The activation script copies `boot/start-terhux` into `~/.termux/boot/`. Install
 
 ## Updating/restarting
 
-Run `bash ~/terhux/repo/terhux-activate.sh` again after an update. It first syncs local queue/results, then fast-forwards without discarding local work and restarts the worker. The Termux:Boot script pulls `main` and starts the supervisor after reboot.
+Run `bash ~/terhux/repo/terhux-activate.sh` again after an update. It first syncs local queue/results, then fetches `main` and fast-forwards to the single fetched commit without relying on branch tracking configuration. The Termux:Boot script uses the same sync-and-fetch process before starting the supervisor after reboot.
 
 ## Queue, results, and logs
 

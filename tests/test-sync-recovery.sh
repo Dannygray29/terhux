@@ -20,6 +20,8 @@ echo 'base repository' > README.test
 git add .
 git commit -m 'test base' >/dev/null
 git push -u origin main >/dev/null 2>&1
+# Simulate a phone checkout with multiple configured merge branches.
+git -C "$PHONE" config --add branch.main.merge refs/heads/legacy
 
 # Simulate an action finishing on the phone while the GitHub network is down.
 printf 'TERHUX_RESULT_V1\nID=issue-101\nSTATUS=SUCCESS\nEXIT_CODE=0\n' > "$PHONE/results/issue-101.result"

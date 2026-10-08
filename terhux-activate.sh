@@ -27,7 +27,8 @@ trap restart_old_service EXIT
 
 # Preserve locally completed results and queued work before updating the code.
 bash "$REPO_DIR/terhux-sync.sh" || fail "could not sync local queue/results; the previous worker was restarted"
-git -C "$REPO_DIR" pull --ff-only origin main || fail "could not fast-forward from GitHub; local changes were preserved"
+git -C "$REPO_DIR" fetch origin main || fail "could not fetch main from GitHub; local changes were preserved"
+git -C "$REPO_DIR" merge --ff-only FETCH_HEAD || fail "could not fast-forward to fetched main; local changes were preserved"
 chmod +x "$REPO_DIR"/terhux-*.sh "$REPO_DIR/boot/start-terhux"
 mkdir -p "$HOME/.termux/boot"
 cp "$REPO_DIR/boot/start-terhux" "$HOME/.termux/boot/start-terhux"

@@ -33,7 +33,7 @@ attempt=1
 delay="$BASE_DELAY"
 while [ "$attempt" -le "$RETRIES" ]; do
   if git fetch "$REMOTE" "$BRANCH" >>"$LOG_FILE" 2>&1; then
-    if git rebase "refs/remotes/$REMOTE/$BRANCH" >>"$LOG_FILE" 2>&1; then
+    if git rebase FETCH_HEAD >>"$LOG_FILE" 2>&1; then
       if git push "$REMOTE" "HEAD:$BRANCH" >>"$LOG_FILE" 2>&1; then
         log "sync succeeded on attempt $attempt"
         exit 0

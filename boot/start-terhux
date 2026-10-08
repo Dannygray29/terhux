@@ -4,8 +4,16 @@ LOG_DIR="$REPO_DIR/logs"
 mkdir -p "$LOG_DIR"
 command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock >/dev/null 2>&1 || true
 if [ -d "$REPO_DIR/.git" ]; then
-  cd "$REPO_DIR" || exit 1
-  git pull --quiet --rebase >>"$LOG_DIR/boot.log" 2>&1 || true
+  if bash "$REPO_DIR/terhux-sync.sh" >>"$LOG_DIR/boot.log" 2>&1; then
+    if git -C "$REPO_DIR" fetch origin main >>"$LOG_DIR/boot.log" 2>&1; then
+      git -C "$REPO_DIR" merge --ff-only FETCH_HEAD >>"$LOG_DIR/boot.log" 2>&1 || \
+        echo "$(date '+%Y-%m-%d %H:%M:%S') update skipped; fast-forward unavailable" >>"$LOG_DIR/boot.log"
+    else
+      echo "$(date '+%Y-%m-%d %H:%M:%S') update skipped; fetch failed" >>"$LOG_DIR/boot.log"
+    fi
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') update skipped; queue/result sync failed" >>"$LOG_DIR/boot.log"
+  fi
 fi
 chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
 if pgrep -f "$REPO_DIR/terhux-supervisor.sh" >/dev/null 2>&1; then

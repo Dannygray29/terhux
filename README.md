@@ -28,7 +28,7 @@ Local completed results and pending bridge files are retained and retried after 
 After Termux and GitHub CLI are installed and GitHub is authenticated on the phone, run:
 
 ```bash
-cd ~/terhux/repo && git pull --ff-only origin main && bash ./terhux-activate.sh
+cd ~/terhux/repo && bash ./terhux-sync.sh && git fetch origin main && git merge --ff-only FETCH_HEAD && bash ./terhux-activate.sh
 ```
 
 This syncs pending work, updates the code, copies the Termux:Boot launcher, and starts the worker. No PIN or secret setup is involved. The status file is informational, not a live health check.
