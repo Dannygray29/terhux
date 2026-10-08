@@ -1,34 +1,24 @@
 #!/usr/bin/env python3
-"""Consume authenticated GitHub Issues for the phone-hosted Terhux bridge."""
+"""Consume structured GitHub Issues for the phone-hosted Terhux bridge."""
 from __future__ import annotations
 
-import base64
 import json
 import os
 import re
 import signal
 import subprocess
-import sys
 import time
 from pathlib import Path
 
 REPO_DIR = Path(os.environ.get("TERHUX_REPO_DIR", str(Path.home() / "terhux/repo"))).resolve()
 REPO_SLUG = os.environ.get("TERHUX_GITHUB_REPO", "Dannygray29/terhux")
 LABEL = os.environ.get("TERHUX_REQUEST_LABEL", "terhux-request")
-CONFIG_DIR = Path.home() / ".config/terhux"
-PRIVATE_KEY = Path(os.environ.get("TERHUX_PRIVATE_KEY_FILE", str(CONFIG_DIR / "access-private.pem")))
-PIN_HASH = Path(os.environ.get("TERHUX_PIN_HASH_FILE", str(CONFIG_DIR / "pin-hash.json")))
-PUBLIC_CERT = REPO_DIR / "terhux-access-cert.pem"
-RATE_FILE = CONFIG_DIR / "auth-failures.json"
-ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
-FIELD_RE = re.compile(r"^[A-Z_]+$")
+MAX_BODY_BYTES = 32_000
 ALLOWED_FIELDS = {
-    "ID", "ACTION", "PROJECT", "PATH", "CONTENT_B64", "FROM_B64",
-    "TO_B64", "PACKAGE", "NEW_NAME", "APPROVED",
+    "ACTION", "PROJECT", "PATH", "CONTENT_B64", "FROM_B64", "TO_B64",
+    "PACKAGE", "NEW_NAME", "APPROVED",
 }
-WINDOW_SECONDS = 24 * 60 * 60
-PER_USER_LIMIT = 5
-GLOBAL_LIMIT = 20
+ID_RE = re.compile(r"^issue-[1-9][0-9]*$")
 
 
 def log(message: str) -> None:
@@ -77,7 +67,7 @@ def close_issue(number: int) -> bool:
 
 def has_marker(number: int, marker: str) -> bool:
     result = gh(["issue", "view", str(number), "--json", "comments", "--jq", ".comments[].body"])
-    return result.returncode == 0 and marker.encode() in result.stdout
+    return result.returncode == 0 and marker.encode("utf-8") in result.stdout
 
 
 def respond_once(number: int, marker: str, body: str) -> bool:
@@ -87,124 +77,39 @@ def respond_once(number: int, marker: str, body: str) -> bool:
     return True
 
 
-def read_rate_state() -> dict:
-    try:
-        state = json.loads(RATE_FILE.read_text(encoding="utf-8"))
-        if not isinstance(state, dict):
-            raise ValueError
-        return state
-    except (OSError, ValueError, json.JSONDecodeError):
-        return {"global": [], "users": {}}
-
-
-def prune_times(values: list, now: int) -> list[int]:
-    return [int(t) for t in values if isinstance(t, (int, float)) and now - int(t) < WINDOW_SECONDS]
-
-
-def rate_state(author: str) -> tuple[dict, bool]:
-    now = int(time.time())
-    state = read_rate_state()
-    state["global"] = prune_times(state.get("global", []), now)
-    users = state.setdefault("users", {})
-    user_times = prune_times(users.get(author, []), now)
-    users[author] = user_times
-    blocked = len(user_times) >= PER_USER_LIMIT or len(state["global"]) >= GLOBAL_LIMIT
-    return state, blocked
-
-
-def write_rate_state(state: dict) -> None:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temporary = RATE_FILE.with_suffix(".tmp")
-    temporary.write_text(json.dumps(state, separators=(",", ":")), encoding="utf-8")
-    os.chmod(temporary, 0o600)
-    temporary.replace(RATE_FILE)
-    os.chmod(RATE_FILE, 0o600)
-
-
-def add_auth_failure(state: dict, author: str) -> None:
-    now = int(time.time())
-    state["global"] = prune_times(state.get("global", []), now)
-    state["global"].append(now)
-    users = state.setdefault("users", {})
-    users[author] = prune_times(users.get(author, []), now) + [now]
-    write_rate_state(state)
-
-
-def clear_user_failures(author: str) -> None:
-    state = read_rate_state()
-    state["users"] = state.get("users", {})
-    state["users"].pop(author, None)
-    write_rate_state(state)
-
-
-def auth_response(number: int, code: str, message: str) -> None:
-    marker = f"TERHUX_AUTH:{number}:{code}"
-    body = f"{marker}\n{message}"
-    if respond_once(number, marker, body):
+def reject_issue(number: int, code: str, message: str) -> None:
+    marker = f"TERHUX:{number}:{code}"
+    if respond_once(number, marker, f"{marker}\n{message}"):
         remove_request_label(number)
 
 
-def parse_envelope(body: str) -> bytes:
-    lines = body.splitlines()
-    if len(lines) != 2 or lines[0].strip() != "TERHUX_CMS_V1" or not lines[1].startswith("PAYLOAD_B64="):
-        raise ValueError("invalid envelope format")
-    payload = base64.b64decode(lines[1].split("=", 1)[1], validate=True)
-    if not payload or len(payload) > 48_000:
-        raise ValueError("envelope size is invalid")
-    return payload
-
-
-def decrypt_payload(envelope: bytes) -> dict:
-    if not PRIVATE_KEY.is_file() or not PUBLIC_CERT.is_file() or not PIN_HASH.is_file():
-        raise FileNotFoundError("local authentication is not initialized")
-    result = subprocess.run(
-        ["openssl", "cms", "-decrypt", "-binary", "-inform", "DER",
-         "-in", "-", "-out", "-", "-recip", str(PUBLIC_CERT), "-inkey", str(PRIVATE_KEY)],
-        input=envelope,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=20,
-        check=False,
-    )
-    if result.returncode:
-        raise ValueError("envelope decryption failed")
-    if len(result.stdout) > 32_000:
-        raise ValueError("decrypted request is too large")
-    payload = json.loads(result.stdout.decode("utf-8"))
-    if not isinstance(payload, dict) or payload.get("protocol") != "TERHUX_ISSUE_V1":
-        raise ValueError("invalid decrypted request")
-    if not isinstance(payload.get("pin"), str) or not isinstance(payload.get("fields"), dict):
-        raise ValueError("invalid decrypted request fields")
-    return payload
-
-
-def verify_pin(pin: str) -> bool:
-    result = subprocess.run(
-        [sys.executable, str(REPO_DIR / "terhux-auth.py"), "verify-pin", str(PIN_HASH)],
-        input=pin.encode("utf-8"),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        timeout=30,
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def validate_fields(fields: dict) -> tuple[str, str]:
-    if not fields or any(not isinstance(k, str) or not FIELD_RE.fullmatch(k) for k in fields):
-        raise ValueError("field names are invalid")
+def validate_request(body: str, issue_number: int) -> tuple[str, str]:
+    if len(body.encode("utf-8")) > MAX_BODY_BYTES:
+        raise ValueError("request body exceeds 32 KB")
+    try:
+        fields = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise ValueError("issue body must be one JSON object without Markdown fences") from exc
+    if not isinstance(fields, dict) or not fields:
+        raise ValueError("request must be a non-empty JSON object")
+    if any(not isinstance(key, str) for key in fields):
+        raise ValueError("request field names must be strings")
     if set(fields) - ALLOWED_FIELDS:
         raise ValueError("request contains unsupported fields")
-    if any(not isinstance(v, str) or "\n" in v or "\r" in v or "\x00" in v for v in fields.values()):
-        raise ValueError("field values must be single-line strings")
-    request_id = fields.get("ID", "")
-    if not ID_RE.fullmatch(request_id):
-        raise ValueError("ID must use 1-80 letters, digits, dots, underscores, or hyphens")
+    if any(not isinstance(value, str) or "\n" in value or "\r" in value or "\x00" in value
+           for value in fields.values()):
+        raise ValueError("all request values must be single-line strings")
     if not fields.get("ACTION"):
         raise ValueError("ACTION is required")
     if fields.get("APPROVED") != "true":
-        raise ValueError("APPROVED=true is required")
-    return request_id, "\n".join(f"{key}={fields[key]}" for key in sorted(fields)) + "\n"
+        raise ValueError('APPROVED must be the string "true"')
+
+    request_id = f"issue-{issue_number}"
+    if not ID_RE.fullmatch(request_id):
+        raise ValueError("invalid GitHub issue number")
+    command_fields = {"ID": request_id, **fields}
+    command_text = "\n".join(f"{key}={command_fields[key]}" for key in sorted(command_fields)) + "\n"
+    return request_id, command_text
 
 
 def runner_result(request_id: str, command_text: str) -> Path:
@@ -255,71 +160,68 @@ def summarize_result(request_id: str, result_file: Path) -> tuple[str, str]:
     except OSError:
         pass
     url = f"https://github.com/{REPO_SLUG}/blob/main/results/{request_id}.result"
-    return status, f"TERHUX_RESULT:{request_id}\nRequest `{request_id}` finished with status **{status}** (exit `{exit_code}`).\nResult: {url}"
+    return status, (
+        f"TERHUX_RESULT:{request_id}\n"
+        f"Request finished with status **{status}** (exit `{exit_code}`).\n"
+        f"Result: {url}"
+    )
 
 
 def process_issue(issue: dict) -> None:
     number = int(issue["number"])
-    author_obj = issue.get("author") or {}
-    author = str(author_obj.get("login", "unknown"))
+    title = str(issue.get("title") or "")
     body = str(issue.get("body") or "")
 
-    if not PRIVATE_KEY.is_file() or not PUBLIC_CERT.is_file() or not PIN_HASH.is_file():
-        auth_response(number, "SETUP", "Phone-side password setup is not complete. Ask the repository owner to run `terhux-auth-init.sh` in Termux, then submit a new encrypted request. No request was executed.")
+    if number < 1:
         return
-
-    state, blocked = rate_state(author)
-    if blocked:
-        auth_response(number, "LOCKED", "Too many failed access attempts are recorded for this account or repository. Wait 24 hours or ask the owner to review the local lockout. No request was executed.")
+    if not title.startswith("[Terhux]"):
+        reject_issue(number, "TITLE", "Request titles must start with `[Terhux]`. No action was executed.")
         return
-
     try:
-        envelope = parse_envelope(body)
-        payload = decrypt_payload(envelope)
-    except FileNotFoundError:
-        auth_response(number, "SETUP", "Phone-side password setup is incomplete. Ask the repository owner to run `terhux-auth-init.sh` in Termux. No request was executed.")
-        return
-    except (ValueError, json.JSONDecodeError, subprocess.TimeoutExpired, OSError):
-        auth_response(number, "ENVELOPE", "The encrypted request could not be opened. Create a new request using the current public certificate; do not put the PIN in the issue body.")
-        return
-
-    pin = payload.pop("pin")
-    if not verify_pin(pin):
-        add_auth_failure(state, author)
-        auth_response(number, "DENIED", "Access was not authorized. No request was executed. Ask the owner for the PIN privately; never post it in an issue or commit it to GitHub.")
-        return
-    clear_user_failures(author)
-
-    try:
-        request_id, command_text = validate_fields(payload["fields"])
-    except (ValueError, KeyError, TypeError) as exc:
-        auth_response(number, "REQUEST", f"The PIN was accepted, but the request format is invalid: {exc}. No action was executed.")
+        request_id, command_text = validate_request(body, number)
+    except (ValueError, TypeError) as exc:
+        reject_issue(number, "REQUEST", f"Invalid request: {exc}. No action was executed.")
         return
 
     result_file = runner_result(request_id, command_text)
+    if not result_file.is_file():
+        log(f"runner did not publish a result for issue #{number}; leaving it queued for retry")
+        return
+
     # Do not acknowledge an unpublished result while offline; the next poll retries sync.
-    sync = subprocess.run(["bash", str(REPO_DIR / "terhux-sync.sh")], cwd=REPO_DIR,
-                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL, timeout=90, check=False)
+    try:
+        sync = subprocess.run(
+            ["bash", str(REPO_DIR / "terhux-sync.sh")],
+            cwd=REPO_DIR,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=90,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log(f"result for issue #{number} is local; sync will retry ({type(exc).__name__})")
+        return
     if sync.returncode:
         log(f"result for issue #{number} is local; GitHub sync will retry")
         return
 
     status, comment = summarize_result(request_id, result_file)
-    marker = f"TERHUX_RESULT:{request_id}"
-    if respond_once(number, marker, comment):
+    if respond_once(number, f"TERHUX_RESULT:{request_id}", comment):
         close_issue(number)
     log(f"processed issue #{number} as {request_id}: {status}")
 
 
 def main() -> int:
     if not (REPO_DIR / ".git").exists():
-        log("repository unavailable; issue worker skipped")
+        log(f"repository unavailable: {REPO_DIR}")
         return 1
     try:
-        listed = gh(["issue", "list", "--state", "open", "--label", LABEL,
-                     "--limit", "1", "--search", "sort:created-asc",
-                     "--json", "number,title,body,author"])
+        listed = gh([
+            "issue", "list", "--state", "open", "--label", LABEL,
+            "--limit", "1", "--search", "sort:created-asc",
+            "--json", "number,title,body",
+        ])
     except (OSError, subprocess.TimeoutExpired) as exc:
         log(f"issue poll failed: {type(exc).__name__}")
         return 1
@@ -331,7 +233,7 @@ def main() -> int:
     except (UnicodeDecodeError, json.JSONDecodeError):
         log("issue poll returned invalid JSON")
         return 1
-    if not issues:
+    if not isinstance(issues, list) or not issues:
         return 0
     try:
         process_issue(issues[0])

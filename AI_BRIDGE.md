@@ -1,87 +1,86 @@
-# Terhux AI Bridge Protocol
+# Terhux AI Bridge
 
-Terhux runs on the owner's Android phone inside Termux. GitHub Issues are the request queue; the phone is the only execution host. Knowing the repository URL does not grant access.
+**Flow:** AI agent → GitHub Issue → Android Termux → GitHub Issue result → AI agent.
 
-## Access requirements
+Any AI with a GitHub Issues connector or MCP server can use the bridge. The phone, not GitHub, runs the command.
 
-- The AI account must be invited to the private repository with **Triage** permission. Triage can create/comment on issues but cannot push runner code. Do **not** grant AI agents Write, Maintain, or Admin access.
-- The phone owner initializes a local access PIN and key pair with `bash terhux-auth-init.sh`. The phone stores its private key and a scrypt PIN verifier outside the repository in `~/.config/terhux/`; only the public certificate is committed as `terhux-access-cert.pem`.
-- A replacement phone that has the repository's public certificate but lacks the matching local private key must be initialized with `bash terhux-auth-init.sh --rotate`; this replaces the public certificate and invalidates requests encrypted to the old one.
-- If the AI does not have the PIN in its approved secret store, it must ask the owner privately. **Never put the PIN in an issue, repository file, or commit.** Do not paste the PIN into a public or shared channel.
+## Access
 
-The phone wraps each request and PIN in an authenticated CMS AES-256-GCM envelope encrypted to the phone's public certificate. GitHub issue bodies contain only that ciphertext. The PIN is checked locally; failed attempts are rate-limited to 5 per GitHub identity and 20 total per rolling 24 hours. Short PINs remain weak against online guessing; use a longer random PIN.
+The repository is private. Invite each trusted AI's GitHub account with **Triage** permission. Do not grant AI agents Write, Maintain, or Admin. Triage access to the issue queue is the authorization gate: any trusted Triage collaborator who can apply the `terhux-request` label can submit the documented actions. There is no per-request PIN prompt.
+
+GitHub describes Triage as issue management without code-write access, and documents that users with Triage can apply labels: [repository roles](https://docs.github.com/organizations/managing-user-access-to-your-organizations-repositories/repository-roles-for-an-organization) and [managing labels](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels).
+
+The phone worker only polls open issues carrying the `terhux-request` label. It also requires the title to start with `[Terhux]` and the body to be a valid JSON object. It never runs arbitrary shell text.
 
 ## Submit a request
 
-Create a JSON file containing only structured request fields. Values must be strings. Use a unique `ID` of 1–80 letters, digits, dots, underscores, or hyphens, and include `APPROVED` set to the string `true`.
+Create an issue with:
 
-Example health/version request (`request.json`):
+- **Title:** begins with `[Terhux]`, followed by a short description.
+- **Label:** `terhux-request`.
+- **Body:** one JSON object only—no Markdown fences. All values must be strings. Include `APPROVED` with the string value `"true"`.
 
-```json
-{"ID":"health-20261007-a1","ACTION":"terhux-runner-version","APPROVED":"true"}
-```
+The worker creates the unique request ID from the GitHub issue number; do not include an `ID` field.
 
-Example file read:
-
-```json
-{"ID":"read-20261007-b2","ACTION":"project-read-file","PROJECT":"netboost","PATH":"README.md","APPROVED":"true"}
-```
-
-Example file write (base64-encode the UTF-8 file contents):
+### Example JSON body
 
 ```json
-{"ID":"write-20261007-c3","ACTION":"project-write-file","PROJECT":"netboost","PATH":"notes/agent.txt","CONTENT_B64":"<base64-content>","APPROVED":"true"}
+{"ACTION":"terhux-runner-version","APPROVED":"true"}
 ```
 
-Use the repository's public helper to encrypt the request. `TERHUX_PIN` must come from the AI platform's protected secret store or from a private owner prompt; do not hard-code it in source or shell history.
+### GitHub MCP example
+
+GitHub's official MCP server supports issue creation and issue reads. With a connected GitHub MCP client, use its issue-write tool to create:
+
+```json
+{
+  "method": "create",
+  "owner": "Dannygray29",
+  "repo": "terhux",
+  "title": "[Terhux] Check runner version",
+  "body": "{\"ACTION\":\"terhux-runner-version\",\"APPROVED\":\"true\"}",
+  "labels": ["terhux-request"]
+}
+```
+
+Then use the MCP issue-read tool with `method: "get_comments"` for that issue to receive the phone's result. Tool names vary among MCP clients; the operations needed are **create issue with a label** and **read issue comments**. The official GitHub remote MCP endpoint is `https://api.githubcopilot.com/mcp/`; the agent must authenticate with an account that has Triage access to this repository. See [GitHub's setup guide](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/customize-copilot/extend-copilot-with-tools-and-context/set-up-the-github-mcp-server) and [official issue tool documentation](https://github.com/github/github-mcp-server).
+
+### GitHub CLI example
 
 ```bash
-node terhux-encrypt-request.js request.json > encrypted-body.txt
 gh issue create --repo Dannygray29/terhux \
-  --title "[Terhux] health-20261007-a1" \
+  --title "[Terhux] Check runner version" \
   --label terhux-request \
-  --body-file encrypted-body.txt
-rm -f encrypted-body.txt
+  --body '{"ACTION":"terhux-runner-version","APPROVED":"true"}'
 ```
 
-The issue body must be the helper output, exactly as generated (`TERHUX_CMS_V1` and `PAYLOAD_B64=...`). Do not wrap it in Markdown fences or add plaintext request fields. The helper needs Node.js, OpenSSL 3.x, and the repository's current public certificate. It does not print the PIN or write plaintext to a file; it streams the payload to OpenSSL through stdin and emits only ciphertext.
+For other actions, put their documented parameters in the JSON body. Never include passwords, tokens, API keys, private keys, or other credentials.
 
-If the PIN is not available, ask the owner through a private channel. If a request is unsigned/malformed or has the wrong PIN, the phone does **not** execute it; it comments with a safe error and removes the request label. After receiving the PIN, create a fresh request with a new unique ID. Never retry an action under an ID whose result already exists.
-
-## Allowed actions
+## Supported actions
 
 `PROJECT` names a directory under the phone owner's Termux home. `PATH` is relative to that directory; absolute paths and `..` traversal are rejected.
 
-| Action | Required fields | Notes |
+| Action | Required fields in addition to `ACTION` and `APPROVED` | Notes |
 |---|---|---|
-| `terhux-runner-version` | `ID`, `ACTION`, `APPROVED` | Harmless worker check. |
-| `project-read-file` | plus `PROJECT`, `PATH` | Do not read or return secrets. |
-| `project-write-file` | plus `PROJECT`, `PATH`, `CONTENT_B64` | Writes a project file. |
-| `project-replace` | plus `PROJECT`, `PATH`, `FROM_B64`, `TO_B64` | Replaces one exact text match. |
-| `project-install` | plus `PROJECT` | Runs `npm install`; lifecycle scripts may execute. |
-| `project-npm-install` | plus `PROJECT`, `PACKAGE` | Installs a development dependency; package scripts may execute. |
-| `project-build` | plus `PROJECT` | Runs `npm run build`; project scripts may execute. |
-| `project-test` | plus `PROJECT` | Runs `npm test`; project scripts may execute. |
-| `project-android` | plus `PROJECT` | Runs `npm run android`; project scripts may execute. |
-| `project-vercel-deploy` | plus `PROJECT` | Can publish/deploy; use only with owner authorization. |
-| `github-repo-rename` | plus `PROJECT`, `NEW_NAME` | Renames a repository; use only with owner authorization. |
-| `terhux2-bootstrap` | `ID`, `ACTION`, `APPROVED` | Legacy service bootstrap; avoid for ordinary requests. |
+| `terhux-runner-version` | None | Harmless worker check. |
+| `project-read-file` | `PROJECT`, `PATH` | Do not read or return secrets. |
+| `project-write-file` | `PROJECT`, `PATH`, `CONTENT_B64` | `CONTENT_B64` is base64-encoded UTF-8 content. |
+| `project-replace` | `PROJECT`, `PATH`, `FROM_B64`, `TO_B64` | Replaces one exact text match. |
+| `project-install` | `PROJECT` | Runs `npm install`; package lifecycle scripts may execute. |
+| `project-npm-install` | `PROJECT`, `PACKAGE` | Installs a development dependency; package scripts may execute. |
+| `project-build` | `PROJECT` | Runs `npm run build`; project scripts may execute. |
+| `project-test` | `PROJECT` | Runs `npm test`; project scripts may execute. |
+| `project-android` | `PROJECT` | Runs `npm run android`; project scripts may execute. |
+| `project-vercel-deploy` | `PROJECT` | Can publish/deploy; only trusted agents should request it. |
+| `github-repo-rename` | `PROJECT`, `NEW_NAME` | Renames a repository; use only when authorized. |
+| `terhux2-bootstrap` | None | Legacy bootstrap; avoid for ordinary requests. |
 
-There is no arbitrary shell-command action. `APPROVED=true` is a request-format check, **not** a separate human approval checkpoint. Only request work the owner has authorized.
+Unknown fields or malformed requests are rejected. `APPROVED="true"` is a request-format check, **not** a separate human approval checkpoint. A trusted Triage agent can submit a request that runs any action in this list.
 
-## Results and limits
+## Results, retries, and availability
 
-The phone polls labeled open issues about every five seconds. An issue waits while the phone is offline. After processing, the phone commits `results/<ID>.result`, comments on the issue with the status and result link, then closes the issue. If PIN setup is missing or authentication fails, the issue stays open without the queue label until a new encrypted request is submitted.
+The phone polls labeled open issues about every five seconds. After an action, it commits `results/issue-<number>.result`, comments on the issue with the status and result link, and closes the issue. The AI should read the issue comments for the response; the result file is also available in the private repository.
 
-A successful result contains `STATUS=SUCCESS` and `EXIT_CODE=0`. Other statuses include `ERROR`, `BLOCKED`, `TIMEOUT`, and `OUTPUT_LIMIT`. Long-running project actions default to a 600-second limit (owner-configurable to at most 1,800 seconds); captured output is bounded. Timeouts can leave partial side effects—inspect before retrying. These limits are not a sandbox; deliberately detached project processes may outlive the command.
+Requests wait in GitHub while the phone is offline. Processing is sequential and best-effort. Delivery is at least once: if the phone stops after an external effect but before publishing the result, the request may be retried. Do not blindly resubmit after `TIMEOUT` or `OUTPUT_LIMIT`; inspect the issue and result first.
 
-Issue processing is sequential and best-effort. The bridge is available only when the phone, Termux, GitHub credentials, and network are working. It is not a GitHub-hosted VM and cannot execute while the phone is off.
-
-## Security rules
-
-1. Use a unique ID and only the documented action allowlist.
-2. Never place the PIN, tokens, private keys, or credentials in an issue or repository file.
-3. Do not submit raw shell commands or arbitrary code.
-4. Only access project files and external services the owner has authorized.
-5. Never grant the AI account code-write permissions on the execution repository.
-6. A completed action may have partial external effects; do not blindly resubmit after `TIMEOUT` or `OUTPUT_LIMIT`.
+Project actions default to a 600-second wall-time limit (owner-configurable up to 1,800 seconds) and captured output is bounded. Timeouts can leave partial side effects. These limits are not an OS sandbox; deliberately detached processes may outlive the command. The bridge works only while the phone is powered on, connected, and allowing Termux to run.

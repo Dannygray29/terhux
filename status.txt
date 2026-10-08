@@ -1,5 +1,6 @@
 Terhux execution host: Android phone running Termux
-GitHub role: encrypted, labeled Issues queue and result storage only
-Availability: only while the phone is powered on, online, and the Termux worker is allowed to run
+Request/result channel: GitHub Issues with the terhux-request label
+Agent access: trusted GitHub Triage permission; no Actions secret or PIN required
+Availability: only while the phone is powered on, online, and Termux is allowed to run
 Worker poll interval: about 5 seconds by default
-Status: informational only; submit an encrypted terhux-runner-version issue and check its result link for a live end-to-end check
+Status: informational only; submit a [Terhux] runner-version issue and read its result comment for a live end-to-end check

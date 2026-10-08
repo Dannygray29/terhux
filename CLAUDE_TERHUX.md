@@ -1,29 +1,36 @@
-# Terhux Claude Gateway
+# Terhux for Claude and MCP-connected agents
 
-Claude can use GitHub's official remote MCP server to work with the Terhux repository. The repository now contains a GitHub Actions gateway that converts a structured Claude issue into the existing encrypted Terhux issue protocol.
+Claude and other AI agents can use Terhux through the private GitHub repository's Issues queue. The route is:
 
-## Flow
+**AI/MCP client → GitHub Issue → phone running Termux → result comment → AI/MCP client.**
 
-Claude -> GitHub MCP -> Claude-Terhux issue -> GitHub Actions -> encrypted issue -> Android Termux -> Terhux -> result.
+## One-time access
 
-The workflow requires the repository Actions secret `TERHUX_PIN`. The secret is never committed and is not exposed to Claude. GitHub Actions secrets are intended for sensitive workflow credentials. citeturn1search0turn1search2
+The repository owner invites the AI's GitHub account with **Triage** permission. The AI must connect an Issues-capable GitHub MCP server to that account. Triage access is the authorization gate; no password prompt or Actions secret is used. Only grant it to agents trusted to request the documented actions.
 
-**Authorization note:** this gateway automatically encrypts every matching issue with the Actions secret; Claude does not have to know or enter the PIN. Therefore, the practical authorization boundary for this gateway is who can open issues in the private repository (for example, Triage collaborators), not a per-request password prompt. Invite only agents trusted to submit actions. If every agent must be prompted for the PIN, use the direct client-side encrypted protocol in `AI_BRIDGE.md` instead of this automatic gateway.
+GitHub's official remote MCP endpoint is `https://api.githubcopilot.com/mcp/`. Its issue-write operation can create an issue with a label; its issue-read operation can fetch issue comments. See GitHub's [MCP setup guide](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/customize-copilot/extend-copilot-with-tools-and-context/set-up-the-github-mcp-server) and [official MCP server](https://github.com/github/github-mcp-server). Other GitHub MCP clients work too if they can create labeled issues and read comments.
 
-The phone's public certificate must exist at `terhux-access-cert.pem`; the private key and PIN verifier remain under the phone's local `~/.config/terhux/`.
+## Send a request
 
-Claude should create issues with:
+Create an issue in `Dannygray29/terhux`:
 
-- title beginning with `[Claude-Terhux]`
-- JSON body containing only the documented Terhux request fields
-- `APPROVED` set to the string `true`
+- Title starts with `[Terhux]`.
+- Label is `terhux-request`.
+- Body is one JSON object, no code fence; all values are strings and `APPROVED` is `"true"`.
 
-The gateway adds the `terhux-request` label only after successful encryption, preventing the phone worker from consuming the plaintext request.
+Example MCP `issue_write` request:
 
-## Claude connection
+```json
+{
+  "method": "create",
+  "owner": "Dannygray29",
+  "repo": "terhux",
+  "title": "[Terhux] Check runner version",
+  "body": "{\"ACTION\":\"terhux-runner-version\",\"APPROVED\":\"true\"}",
+  "labels": ["terhux-request"]
+}
+```
 
-Use GitHub's official remote MCP server:
+The phone assigns an ID from the issue number, executes only an allowlisted action, then comments with the result and closes the issue. Read the issue comments with MCP `issue_read` using `method: "get_comments"`. For the accepted fields and actions, follow [AI_BRIDGE.md](AI_BRIDGE.md).
 
-`https://api.githubcopilot.com/mcp/`
-
-Claude custom connectors support remote MCP servers.
+Do not submit passwords, API keys, tokens, or arbitrary shell commands. Requests can run only while the phone is online and Termux is active.

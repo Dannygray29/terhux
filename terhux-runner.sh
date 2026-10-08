@@ -18,13 +18,14 @@ run_timed_action() {
     122) status=OUTPUT_LIMIT; stderr="Action exceeded the captured-output limit and was interrupted. Check for partial external effects before retrying.";;
   esac
 }
-valid_project() { [ -n "$project" ] && [[ "$project" =~ ^[A-Za-z0-9._-]+$ ]]; }
+valid_project_name() { [ -n "$project" ] && [ "$project" != "." ] && [ "$project" != ".." ] && [[ "$project" =~ ^[A-Za-z0-9._-]+$ ]]; }
+valid_project() { valid_project_name && [ -d "$project_dir" ]; }
 project_dir="$HOME/$project"
 if [ "$status" = SUCCESS ]; then
 case "$action" in
 terhux-runner-version) stdout="TERHUX_RUNNER_OK";;
 github-repo-rename)
-  valid_project || { status=BLOCKED; exit_code=1; stderr="Invalid or missing project."; }
+  valid_project_name || { status=BLOCKED; exit_code=1; stderr="Invalid or missing repository name."; }
   new_name=$(printf '%s\n' "$raw"|sed -n 's/^NEW_NAME=//p'|head -n1)
   [[ "$new_name" =~ ^[A-Za-z0-9._-]+$ ]] || { status=BLOCKED; exit_code=1; stderr="Invalid repository name."; }
   [ "$status" = SUCCESS ] && run_timed_action "$REPO_DIR" gh repo rename "$new_name" --repo "Dannygray29/$project" --yes;;

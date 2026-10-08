@@ -23,8 +23,8 @@ while true; do
     continue
   fi
 
-  # Agents submit issues, not code commits. Only the owner-controlled phone
-  # worker can turn an encrypted issue into an allowlisted local action.
+  # Agents submit labeled structured issues, not code commits. Only the
+  # owner-controlled phone worker can pass a request to the action allowlist.
   python3 "$REPO_DIR/terhux-issue-worker.py" >>"$LOG_DIR/bridge.log" 2>&1 || log "issue poll/worker returned non-zero"
 
   sleep "$INTERVAL"

@@ -1,97 +1,65 @@
 # Termux Phone Host Setup
 
-Terhux executes on the Android phone, not on GitHub. GitHub Issues carry encrypted requests; GitHub stores result files and issue comments.
+Terhux executes on the Android phone inside Termux. GitHub Issues are the request and result channel; no GitHub Actions runner or Actions secret is involved.
 
-## 1. Install prerequisites and clone/update
+## 1. Install prerequisites and authenticate GitHub
 
-In Termux, install the runtime tools (skip ones already installed):
+In Termux, install the tools used by the watcher and bounded runner:
 
 ```bash
 pkg update
-pkg install git gh openssl python coreutils
+pkg install git gh python coreutils
 ```
 
-Authenticate GitHub CLI as the **repository owner** on the phone and make sure the account can read/write `Dannygray29/terhux`. Clone the private repository if needed, or update the existing clone:
+Authenticate GitHub CLI on the phone as the repository owner (or an account with the repository access needed to sync requests/results):
+
+```bash
+gh auth login
+```
+
+Clone the private repository if it is not present, or update the existing checkout:
 
 ```bash
 gh repo clone Dannygray29/terhux ~/terhux/repo
-# For an existing clone:
+# Existing checkout:
 cd ~/terhux/repo
 git pull --ff-only
 ```
 
-The phone needs `gh` for Issues, OpenSSL 3.x for CMS AES-GCM decryption, Python for local PIN verification, and GNU `timeout` from coreutils for bounded actions.
+## 2. Activate the bridge once
 
-## 2. Initialize phone-only PIN access
-
-From the repository directory, run:
+Run this one command in Termux:
 
 ```bash
 cd ~/terhux/repo
-bash terhux-auth-init.sh
+bash ./terhux-activate.sh
 ```
 
-The script prompts twice for the PIN without echoing it. It generates a phone-only RSA private key and stores a scrypt verifier in `~/.config/terhux/` with restrictive permissions. It publishes only the public certificate `terhux-access-cert.pem` to the repository. The PIN itself and private key are never committed or placed in GitHub Issues.
+It preserves pending local queue/results, pulls the latest `main`, installs the boot launcher, and starts the supervisor/worker. **There is no PIN, certificate, encryption helper, or Actions-secret setup.** The `gh` login on the phone is used for polling Issues and syncing results.
 
-The bridge accepts PINs of 4–64 characters and rate-limits failed PIN checks to **5 per GitHub identity and 20 total per rolling 24 hours**. Because the PIN in this conversation is short and has appeared in chat, choose a **new, longer PIN locally** rather than reusing it. A short PIN remains vulnerable to online guessing even though encrypted issues do not expose an offline PIN verifier.
+## 3. Give AI agents issue access
 
-To rotate the PIN and encryption keys later, run:
+In GitHub repository settings, invite each trusted AI account with **Triage** permission. Do not grant AI agents Write, Maintain, or Admin access. Triage is the authorization boundary: agents that can create labeled issues can submit any action in the documented allowlist. Keep the invite list limited to agents you trust.
 
-```bash
-bash terhux-auth-init.sh --rotate
-```
+The queue label `terhux-request` already exists. An AI submits a `[Terhux]` issue with a JSON body and that label. See [AI_BRIDGE.md](../AI_BRIDGE.md) for the JSON format and MCP examples.
 
-Use `--rotate` as well when setting up a replacement phone that has the public certificate in the repository but not the phone-local private key/verifier. Rotation invalidates ciphertext made for the old certificate; agents must fetch the new public certificate and create new requests. The private key and PIN verifier remain local.
+For MCP-connected agents, connect a GitHub Issues-capable MCP server to an account with Triage access. GitHub's official remote MCP endpoint is `https://api.githubcopilot.com/mcp/`; the client needs issue-create and issue-comment/read operations. The phone does not need to know which AI or MCP client created the issue.
 
-## 3. Give agents limited GitHub access
+## 4. Start after Android reboot
 
-In GitHub repository settings, invite each AI agent's own account with **Triage** permission. Triage can create and comment on issues but cannot push code. **Do not grant Write, Maintain, or Admin** to agents. The repository currently has no collaborators beyond the owner. The `terhux-request` label has already been created.
+The activation script copies `boot/start-terhux` into `~/.termux/boot/`. Install the official Termux:Boot add-on from the same source as Termux if you have not already done so. Allow Termux to run in the background and exclude it from battery optimization. Android or an OEM may still stop the process; a wake lock cannot keep a powered-off phone or disconnected network available.
 
-The phone worker polls open issues with that label. Agents submit only encrypted payloads using `terhux-encrypt-request.js`; plaintext PINs and request fields must not be pasted into the issue. See [AI_BRIDGE.md](../AI_BRIDGE.md) for the issue submission protocol and action list.
+## Updating/restarting
 
-## 4. Start the phone worker
+Run `bash ~/terhux/repo/terhux-activate.sh` again after an update. It first syncs local queue/results, then fast-forwards without discarding local work and restarts the worker. The Termux:Boot script pulls `main` and starts the supervisor after reboot.
 
-```bash
-cd ~/terhux/repo
-chmod +x ./*.sh
-./terhux-start.sh
-```
+## Queue, results, and logs
 
-A completed request publishes `results/<ID>.result`, comments on its issue with a result link, and closes the issue. Missing setup, malformed ciphertext, or incorrect PIN results in a safe issue comment and removal of the request label; no action runs.
-
-## 5. Start after Android reboot
-
-Install the official Termux:Boot add-on from the same source as Termux. Copy the repository's boot script into the add-on's startup directory:
-
-```bash
-mkdir -p ~/.termux/boot
-cp ~/terhux/repo/boot/start-terhux ~/.termux/boot/start-terhux
-chmod +x ~/.termux/boot/start-terhux
-```
-
-Allow Termux to run in the background, exclude it from battery optimization, and keep the phone powered and connected. A wake lock can help prevent CPU sleep but cannot keep a powered-off phone or missing network online. Android force-stop and some OEM battery managers can still stop the bridge.
-
-## 6. Updating/restarting the bridge
-
-After a repository update, stop the old processes so the already-running shell loads the new watcher, then pull, initialize credentials if this is the first issue-mode startup, and restart:
-
-```bash
-pkill -f '[t]erhux-supervisor.sh' || true
-pkill -f '[t]erhux-watch.sh' || true
-cd ~/terhux/repo
-git pull --ff-only
-bash terhux-auth-init.sh   # first setup only; prompts for the PIN
-./terhux-start.sh
-```
-
-If the PIN files and certificate already exist, do not run the initializer again unless rotating; it refuses accidental reinitialization. The Termux:Boot script starts the service after reboot, once configured.
-
-## Offline queue, retries, and logs
-
-- Labeled GitHub Issues remain queued while the phone has no network. The worker handles them after it can sync again.
-- Local result commits are preserved and retried; the watcher does not use `git reset --hard`.
-- `~/terhux/repo/logs/bridge.log` records worker/issue activity. `logs/sync.log` records Git fetch/rebase/push retries. Logs must not contain the PIN; report any unexpected output before sharing logs.
-- Delivery is at least once. If the phone stops after an external effect but before the result is published, the action may be retried. Use idempotent work and check state before resubmitting.
+- Labeled GitHub Issues remain queued while the phone has no network.
+- The worker processes requests sequentially, posts the result and a link to `results/issue-<number>.result`, then closes the issue.
+- Local result commits are preserved and retried; the sync loop does not use `git reset --hard`.
+- `~/terhux/repo/logs/bridge.log` records issue activity. `logs/sync.log` records Git fetch/rebase/push retries. Do not put credentials in issue bodies or share logs containing sensitive project output.
+- Delivery is at least once. If the phone stops after an external effect but before the result is published, a retry can repeat work.
 
 ## Long-running actions and timeouts
 
@@ -101,7 +69,7 @@ The phone owner can override the timeout before starting the supervisor, for exa
 
 ```bash
 export TERHUX_ACTION_TIMEOUT_SECONDS=900
-./terhux-start.sh
+bash ~/terhux/repo/terhux-start.sh
 ```
 
-For reboot persistence, put the export in `~/.termux/boot/start-terhux` before the line that starts Terhux. The maximum is 1,800 seconds; agents cannot set it in a request. A missing `timeout` utility causes long-running actions to fail closed. A timeout cannot roll back changes already made by a project script or external service, and these controls are **not an OS sandbox**: deliberately detached processes may escape process-group termination.
+The maximum is 1,800 seconds; agents cannot set it in a request. A missing `timeout` utility causes long-running actions to fail closed. A timeout cannot roll back changes already made by a project script or external service, and these controls are **not an OS sandbox**: deliberately detached processes may escape process-group termination.

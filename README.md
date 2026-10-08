@@ -1,41 +1,35 @@
 # Terhux
 
-Terhux is a **phone-hosted Termux environment with an encrypted GitHub Issues bridge**. The Linux process runs on the owner's Android phone; GitHub provides a request queue and result mailbox, not an always-on VM.
+Terhux is a **Linux command environment running on an Android phone in Termux**. GitHub Issues carry requests to the phone and carry results back to the AI. The bridge works with any AI that can create and read issues through GitHub or a GitHub MCP server.
 
-## How it works
+## The simple flow
 
-1. The owner gives an AI account **Triage** access to this private repository, so it can create issues but cannot push code.
-2. The AI encrypts the request and access PIN to the phone's public certificate and opens an issue with the `terhux-request` label.
-3. Termux polls GitHub, decrypts the issue locally, rate-limits failed PIN attempts, verifies the PIN, and passes approved structured actions to the allowlisted runner.
-4. Results are committed under `results/<id>.result`; the issue receives a result link and is closed. Requests remain queued while the phone is offline.
+1. Give a trusted AI's GitHub account **Triage** permission on this private repository. Do not give AI accounts code-write access.
+2. The AI opens an issue titled `[Terhux] ...`, puts a JSON request in the body, and adds the `terhux-request` label.
+3. Termux polls labeled issues, passes each structured request to the existing bounded action allowlist, and commits the result.
+4. The phone comments on and closes the issue. The AI reads that reply or `results/issue-<number>.result`.
 
-See [AI_BRIDGE.md](AI_BRIDGE.md) for the request format and [docs/PHONE_HOST_SETUP.md](docs/PHONE_HOST_SETUP.md) for phone setup, PIN initialization, and recovery.
+**No GitHub Actions secret, public certificate, PIN, or encryption helper is required.** Repository access and the ability to apply the request label are the access gate. Only grant Triage to agents you trust to run the documented actions.
 
-## Security model
+See [AI_BRIDGE.md](AI_BRIDGE.md) for the request format and MCP examples, [CLAUDE_TERHUX.md](CLAUDE_TERHUX.md) for connecting MCP-capable agents, and [docs/PHONE_HOST_SETUP.md](docs/PHONE_HOST_SETUP.md) for the one-time phone activation.
 
-- **Do not grant AI agents Write, Maintain, or Admin repository access.** Invite them with **Triage** only. The repository currently has no other collaborators; add each AI account explicitly.
-- The PIN is encrypted inside the issue payload with CMS AES-256-GCM and the phone's public certificate. The phone-only private key and a scrypt PIN verifier live outside the repository. The PIN is never put in issue text or Git history.
-- Failed access attempts are rate-limited (5 per GitHub identity and 20 total in a rolling 24-hour period). Use a long PIN; a short numeric PIN is still weak against online guessing.
-- The `terhux-request` issue label is already created. Only labeled, encrypted issues enter the worker queue.
-- Requests use an action allowlist. `APPROVED=true` is a protocol field, not a human approval checkpoint; project scripts can execute code and deploy/rename actions have external effects.
+## Request safety
 
-## Availability and execution limits
+Requests are JSON fields, not shell commands. The phone accepts only the runner's fixed action allowlist; it validates paths and bounds action time and captured output. Some allowed actions can write project files, install dependencies, deploy, or rename a repository. `APPROVED="true"` is a protocol field, not a separate owner approval step. A Triage collaborator can therefore submit any documented action; invite agents accordingly.
 
-The environment is available only while the phone is powered on, online, and Termux is allowed to run. Android or an OEM may suspend/stop it; configure battery/background allowances and Termux:Boot. A wake lock cannot keep a powered-off phone or disconnected network available.
+## Availability and limits
 
-The watcher retains local results and retries Git synchronization after outages rather than hard-resetting them away. Processing is best-effort and **at least once**, not exactly once: interruption after an action takes effect can cause a retry. Long-running project actions time out after 10 minutes by default (owner-configurable up to 30 minutes) and captured output is bounded. These are not an OS sandbox; deliberately detached child processes may escape process-group termination.
+The execution environment is Termux's Android Linux userland, **not** an always-on GitHub VM. It is available only while the phone is powered on, online, and Android allows Termux to run. Requests stay queued in GitHub while the phone is offline. Termux:Boot and background/battery settings help resume it after reboots, but cannot keep a powered-off phone or missing network online.
 
-The execution environment is Termux's Android Linux userland, **not** a GitHub-hosted VM or full Ubuntu server. Phone storage and installed packages persist on that device; they are not automatically backed up by GitHub.
+Local completed results and pending bridge files are retained and retried after network outages. Delivery is best-effort and **at least once**, not exactly once: an interruption after an external side effect can cause a retry. Check the issue/result before resubmitting after a timeout. These timeouts are not an OS security sandbox; deliberately detached project processes may outlive a command.
 
-## Start or update the phone worker
+## One-time activation
 
-After the repository is installed at `~/terhux/repo`, initialize the phone-local access key/PIN before starting the new issue worker:
+After Termux and GitHub CLI are installed and GitHub is authenticated on the phone, run:
 
 ```bash
 cd ~/terhux/repo
-bash terhux-auth-init.sh
-chmod +x ./*.sh
-./terhux-start.sh
+bash ./terhux-activate.sh
 ```
 
-The initializer publishes only the public certificate. It keeps the private key and PIN verifier in `~/.config/terhux/`. The owner should choose a new PIN locally; do not reuse a short code posted in chat. The repository's `status.txt` is informational, not a live health check.
+This syncs pending work, updates the code, copies the Termux:Boot launcher, and starts the worker. No PIN or secret setup is involved. The status file is informational, not a live health check.
