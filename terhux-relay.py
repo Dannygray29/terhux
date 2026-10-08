@@ -100,7 +100,7 @@ def main():
                     method="POST",
                     payload=result,
                 )
-                print("TERHUX_RELAY_JOB", item["id"], result.get("status"), flush=True)
+                print("TERHUX_RELAY_JOB", item["id"], item.get("project") or "-", result.get("status"), flush=True)
             else:
                 time.sleep(POLL_SECONDS)
         except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
