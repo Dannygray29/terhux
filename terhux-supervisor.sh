@@ -14,6 +14,10 @@ while true; do
   cd "$REPO_DIR" 2>/dev/null || true
   chmod +x "$REPO_DIR/terhux-runner.sh" "$REPO_DIR/terhux-watch.sh" 2>/dev/null || true
   start_direct
+  if [ -f "$REPO_DIR/terhux-relay.py" ] && ! pgrep -f "[t]erhux-relay.py" >/dev/null 2>&1; then
+    cd "$REPO_DIR" 2>/dev/null || true
+    nohup python3 "$REPO_DIR/terhux-relay.py" >>"$LOG_DIR/relay.log" 2>&1 </dev/null &
+  fi
   "$REPO_DIR/terhux-watch.sh" >>"$LOG_DIR/bridge.log" 2>&1 || true
   sleep 2
 done
