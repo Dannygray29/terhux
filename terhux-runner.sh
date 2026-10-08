@@ -24,6 +24,26 @@ project_dir="$HOME/$project"
 if [ "$status" = SUCCESS ]; then
 case "$action" in
 terhux-runner-version) stdout="TERHUX_RUNNER_OK";;
+terhux-runtime-status)
+  {
+    echo "TERHUX_RUNTIME_STATUS_V1"
+    echo "SUPERVISOR:"
+    pgrep -af "[t]erhux-supervisor.sh" || true
+    echo "WATCHER:"
+    pgrep -af "[t]erhux-watch.sh" || true
+    echo "ISSUE_WORKER:"
+    pgrep -af "[t]erhux-issue-worker.py" || true
+    echo "LEGACY_WORKER:"
+    pgrep -af "[t]erhux-worker.sh" || true
+    echo "LEGACY_AI_AGENT:"
+    pgrep -af "[t]erhux-ai-agent.js" || true
+    echo "TERHUX2:"
+    pgrep -af "[t]erhux2-runner.sh" || true
+    echo "RUNIT_TERHUX:"
+    command -v sv >/dev/null 2>&1 && sv status terhux 2>&1 || echo unavailable
+    echo "RUNIT_TERHUX2:"
+    command -v sv >/dev/null 2>&1 && sv status terhux2 2>&1 || echo unavailable
+  };
 github-repo-rename)
   valid_project_name || { status=BLOCKED; exit_code=1; stderr="Invalid or missing repository name."; }
   new_name=$(printf '%s\n' "$raw"|sed -n 's/^NEW_NAME=//p'|head -n1)
