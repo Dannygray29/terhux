@@ -224,7 +224,8 @@ def main() -> int:
     try:
         listed = gh([
             "issue", "list", "--state", "open",
-            "--limit", "100", "--json", "number,title,body",
+            "--label", LABEL,
+            "--limit", "100", "--json", "number,title,body,labels",
         ])
     except (OSError, subprocess.TimeoutExpired) as exc:
         log(f"issue poll failed: {type(exc).__name__}")
@@ -239,9 +240,16 @@ def main() -> int:
         return 1
     if not isinstance(issues, list) or not issues:
         return 0
+    # The label is the queue authorization gate. Never let unrelated or
+    # rejected issues block later requests merely because their title matches.
     requests = [
         issue for issue in issues
-        if isinstance(issue, dict) and str(issue.get("title") or "").startswith("[Terhux]")
+        if isinstance(issue, dict)
+        and str(issue.get("title") or "").startswith("[Terhux]")
+        and any(
+            isinstance(label, dict) and label.get("name") == LABEL
+            for label in (issue.get("labels") or [])
+        )
     ]
     if not requests:
         return 0
