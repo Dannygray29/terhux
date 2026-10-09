@@ -1,8 +1,9 @@
-# Terhux Direct Remote Architecture
+# Direct HTTP relay status
 
-The direct bridge remains bound to localhost until a secure outbound relay is configured. Do not expose port 8787 directly to the public internet.
+The separate direct HTTP/Vercel relay is **experimental and inactive**. It is not started by `terhux-supervisor.sh` and is not required for ordinary Terhux use.
 
-Target flow:
-AI agent -> authenticated relay -> Termux Terhux direct bridge -> result -> relay -> AI agent
+Use the single active flow:
 
-GitHub remains optional backup/control-plane storage, not the command transport.
+**AI agent → labeled GitHub Issue → Termux shell command → result comment → AI agent.**
+
+GitHub Issues provide the durable mailbox; job data is never committed to the code repository. Do not expose the phone's local port or configure a relay URL. See [AI_BRIDGE.md](AI_BRIDGE.md) for the command and result-comment protocol.

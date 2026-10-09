@@ -1,0 +1,5 @@
+/logs/
+/commands/.incoming/
+/commands/.running/
+/results/issue-*.result
+*.py[cod]

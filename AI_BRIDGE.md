@@ -1,86 +1,74 @@
 # Terhux AI Bridge
 
-**Flow:** AI agent → GitHub Issue → Android Termux → GitHub Issue result → AI agent.
+**Flow:** AI agent → labeled GitHub Issue → Termux shell → result comment → AI agent.
 
-Any AI with a GitHub Issues connector or MCP server can use the bridge. The phone, not GitHub, runs the command.
+GitHub Issues are the mailbox. The AI does not ask the phone owner to relay commands: it submits the command through GitHub/MCP, waits for Termux's comments, and reads the result.
 
-## Access
+## Access and security
 
-The repository is private. Invite each trusted AI's GitHub account with **Triage** permission. Do not grant AI agents Write, Maintain, or Admin. Triage access to the issue queue is the authorization gate: any trusted Triage collaborator who can apply the `terhux-request` label can submit the documented actions. There is no per-request PIN prompt.
+The repository is private. Give **Triage** access only to AI accounts you fully trust. A Triage collaborator who can add `terhux-request` has remote shell access to the Termux user's files, programs, and credentials. This is intentionally equivalent to letting that agent use the phone's Termux manually. It is **not a security sandbox** and there is no per-command human approval step.
 
-GitHub describes Triage as issue management without code-write access, and documents that users with Triage can apply labels: [repository roles](https://docs.github.com/organizations/managing-user-access-to-your-organizations-repositories/repository-roles-for-an-organization) and [managing labels](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels).
+Do not invite untrusted agents. Never put passwords, tokens, private keys, or other secrets in an issue body or ask the shell to print them into an issue comment. The active bridge uses GitHub Issues only; no PIN, Actions secret, Vercel relay, or public phone port is required.
 
-The phone worker only polls open issues carrying the `terhux-request` label. It also requires the title to start with `[Terhux]` and the body to be a valid JSON object. It never runs arbitrary shell text.
+## Send a command
 
-## Submit a request
+Create an issue in `Dannygray29/terhux`:
 
-Create an issue with:
-
-- **Title:** begins with `[Terhux]`, followed by a short description.
+- **Title:** starts with `[Terhux]`, e.g. `[Terhux] Check Termux environment`.
 - **Label:** `terhux-request`.
-- **Body:** one JSON object only—no Markdown fences. All values must be strings. Include `APPROVED` with the string value `"true"`.
+- **Body:** the shell command or multi-line Bash script itself—no JSON wrapper and no Markdown fence.
 
-The worker creates the unique request ID from the GitHub issue number; do not include an `ID` field.
+Example body:
 
-### Example JSON body
-
-```json
-{"ACTION":"terhux-runner-version","APPROVED":"true"}
+```bash
+pwd
+printf 'TERMUX_OK\n'
+ls -la ~
 ```
 
-### GitHub MCP example
+To work in a project, include the directory change in the same request, for example:
 
-GitHub's official MCP server supports issue creation and issue reads. With a connected GitHub MCP client, use its issue-write tool to create:
+```bash
+cd ~/my-project && npm test
+```
+
+Each issue runs in a **fresh login Bash** starting in the Termux home directory. `cd`, shell variables, and other interactive state do not persist between issues; include setup commands in each request as needed. Requests are limited to 32 KB.
+
+### Using a GitHub MCP server
+
+Use the connected GitHub MCP client's issue-create operation with:
 
 ```json
 {
-  "method": "create",
   "owner": "Dannygray29",
   "repo": "terhux",
-  "title": "[Terhux] Check runner version",
-  "body": "{\"ACTION\":\"terhux-runner-version\",\"APPROVED\":\"true\"}",
+  "title": "[Terhux] Check Termux environment",
+  "body": "pwd\nprintf 'TERMUX_OK\\n'\nls -la ~",
   "labels": ["terhux-request"]
 }
 ```
 
-Then use the MCP issue-read tool with `method: "get_comments"` for that issue to receive the phone's result. Tool names vary among MCP clients; the operations needed are **create issue with a label** and **read issue comments**. The official GitHub remote MCP endpoint is `https://api.githubcopilot.com/mcp/`; the agent must authenticate with an account that has Triage access to this repository. See [GitHub's setup guide](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/customize-copilot/extend-copilot-with-tools-and-context/set-up-the-github-mcp-server) and [official issue tool documentation](https://github.com/github/github-mcp-server).
+Then read that issue's comments. MCP tool names/argument shapes vary by client; the required operations are **create issue with a label** and **read issue comments**. GitHub's remote MCP endpoint is `https://api.githubcopilot.com/mcp/`; authenticate the MCP client with an account granted Triage access. See GitHub's [MCP setup guide](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/customize-copilot/extend-copilot-with-tools-and-context/set-up-the-github-mcp-server) and [official GitHub MCP server](https://github.com/github/github-mcp-server).
 
-### GitHub CLI example
+## Read the response
 
-```bash
-gh issue create --repo Dannygray29/terhux \
-  --title "[Terhux] Check runner version" \
-  --label terhux-request \
-  --body '{"ACTION":"terhux-runner-version","APPROVED":"true"}'
-```
+The phone posts:
 
-For other actions, put their documented parameters in the JSON body. Never include passwords, tokens, API keys, private keys, or other credentials.
+1. `TERHUX_STARTED:issue-N` when it accepts the command.
+2. `TERHUX_RESULT:issue-N` with the exit status and captured output when it finishes, then closes the issue.
 
-## Supported actions
+If there is no `TERHUX_STARTED` comment, the phone has not visibly picked up the issue. If it is started but no result arrives, the command may still be running or the phone/network may have stopped; check the issue before resubmitting.
 
-`PROJECT` names a directory under the phone owner's Termux home. `PATH` is relative to that directory; absolute paths and `..` traversal are rejected.
+## Timeouts and reliability
 
-| Action | Required fields in addition to `ACTION` and `APPROVED` | Notes |
-|---|---|---|
-| `terhux-runner-version` | None | Harmless worker check. |
-| `project-read-file` | `PROJECT`, `PATH` | Do not read or return secrets. |
-| `project-write-file` | `PROJECT`, `PATH`, `CONTENT_B64` | `CONTENT_B64` is base64-encoded UTF-8 content. |
-| `project-replace` | `PROJECT`, `PATH`, `FROM_B64`, `TO_B64` | Replaces one exact text match. |
-| `project-install` | `PROJECT` | Runs `npm install`; package lifecycle scripts may execute. |
-| `project-npm-install` | `PROJECT`, `PACKAGE` | Installs a development dependency; package scripts may execute. |
-| `project-build` | `PROJECT` | Runs `npm run build`; project scripts may execute. |
-| `project-test` | `PROJECT` | Runs `npm test`; project scripts may execute. |
-| `project-android` | `PROJECT` | Runs `npm run android`; project scripts may execute. |
-| `project-vercel-deploy` | `PROJECT` | Can publish/deploy; only trusted agents should request it. |
-| `github-repo-rename` | `PROJECT`, `NEW_NAME` | Renames a repository; use only when authorized. |
-| `terhux2-bootstrap` | None | Legacy bootstrap; avoid for ordinary requests. |
+- Default wall-time limit is 600 seconds; the owner may set it up to 1,800 seconds. The AI cannot raise it in a request.
+- Command output is bounded at the Termux runner and the issue comment includes up to 30 KB; larger output is clipped.
+- Requests wait in GitHub while the phone is offline. The phone polls about every five seconds by default.
+- Delivery is **at least once**, not exactly once. If the phone stops after a command has side effects but before it saves/posts its result, the command may be retried. Check the issue before resubmitting after a timeout.
+- Job commands/results are stored under `~/.local/state/terhux`, outside the Git checkout. The worker does not commit or push job data. Updates use explicit `git fetch` and `git merge --ff-only FETCH_HEAD`; the bridge never uses `git pull` for its own updates.
 
-Unknown fields or malformed requests are rejected. `APPROVED="true"` is a request-format check, **not** a separate human approval checkpoint. A trusted Triage agent can submit a request that runs any action in this list.
+The loop works only while the phone is powered on, online, and Android allows Termux to run. Termux:Boot/background settings help it resume after a reboot, but cannot guarantee service when the phone or network is off.
 
-## Results, retries, and availability
+### Compatibility
 
-The phone polls labeled open issues about every five seconds. After an action, it commits `results/issue-<number>.result`, comments on the issue with the status and result link, and closes the issue. The AI should read the issue comments for the response; the result file is also available in the private repository.
-
-Requests wait in GitHub while the phone is offline. Processing is sequential and best-effort. Delivery is at least once: if the phone stops after an external effect but before publishing the result, the request may be retried. Do not blindly resubmit after `TIMEOUT` or `OUTPUT_LIMIT`; inspect the issue and result first.
-
-Project actions default to a 600-second wall-time limit (owner-configurable up to 1,800 seconds) and captured output is bounded. Timeouts can leave partial side effects. These limits are not an OS sandbox; deliberately detached processes may outlive the command. The bridge works only while the phone is powered on, connected, and allowing Termux to run.
+Already-queued legacy diagnostic JSON requests such as `{"ACTION":"terhux-runner-version","APPROVED":"true"}` remain supported. Old project-specific structured actions are retired; new agent requests should use the raw shell body above.

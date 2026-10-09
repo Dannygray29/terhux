@@ -1,6 +1,9 @@
-Terhux execution host: Android phone running Termux
-Request/result channel: GitHub Issues with the terhux-request label
-Agent access: trusted GitHub Triage permission; no Actions secret or PIN required
+Terhux host: Android phone running Termux
+Active transport: GitHub Issues mailbox (`terhux-request` label)
+Request format: raw Bash command/script in a `[Terhux]` issue body
+Reply: `TERHUX_STARTED` and `TERHUX_RESULT` issue comments
+Job state: local under ~/.local/state/terhux; no job commits or pushes
+Code updates: explicit git fetch + fast-forward-only merge; no git pull
 Availability: only while the phone is powered on, online, and Termux is allowed to run
-Worker poll interval: about 5 seconds by default
-Status: informational only; submit a [Terhux] runner-version issue and read its result comment for a live end-to-end check
+Poll interval: about 5 seconds by default
+Status note: informational only; an issue result comment is the live end-to-end check

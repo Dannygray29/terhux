@@ -1,34 +1,30 @@
 # Terhux
 
-Terhux is a **Linux command environment running on an Android phone in Termux**. GitHub Issues carry requests to the phone and carry results back to the AI. The bridge works with any AI that can create and read issues through GitHub or a GitHub MCP server.
+Terhux lets a trusted AI agent run shell commands on the owner's Android phone inside Termux and receive the output automatically.
 
-## The simple flow
+## One path
 
-1. Give a trusted AI's GitHub account **Triage** permission on this private repository. Do not give AI accounts code-write access.
-2. The AI opens an issue titled `[Terhux] ...`, puts a JSON request in the body, and adds the `terhux-request` label.
-3. Termux polls labeled issues, passes each structured request to the existing bounded action allowlist, and commits the result.
-4. The phone comments on and closes the issue. The AI reads that reply or `results/issue-<number>.result`.
+**AI agent → labeled GitHub Issue → Termux shell → result comment → AI agent.**
 
-**No GitHub Actions secret, public certificate, PIN, or encryption helper is required.** Repository access and the ability to apply the request label are the access gate. Only grant Triage to agents you trust to run the documented actions.
+1. The AI creates an issue titled `[Terhux] ...`, labels it `terhux-request`, and puts the shell command or script directly in the issue body.
+2. Termux polls the private repository, posts a `TERHUX_STARTED` comment, and runs the command in a fresh login Bash whose working directory is the Termux home directory.
+3. Termux posts the exit status and bounded stdout/stderr in a `TERHUX_RESULT` comment, then closes the issue. The AI reads the comment through GitHub or GitHub MCP.
 
-See [AI_BRIDGE.md](AI_BRIDGE.md) for the request format and MCP examples, [CLAUDE_TERHUX.md](CLAUDE_TERHUX.md) for connecting MCP-capable agents, and [docs/PHONE_HOST_SETUP.md](docs/PHONE_HOST_SETUP.md) for the one-time phone activation.
+No JSON wrapper is needed for new requests. To work in a project, include `cd ~/project && ...` in the command. Each issue is a fresh shell, so working directory and shell variables do not persist between requests.
 
-## Request safety
+## Access and security
 
-Requests are JSON fields, not shell commands. The phone accepts only the runner's fixed action allowlist; it validates paths and bounds action time and captured output. Some allowed actions can write project files, install dependencies, deploy, or rename a repository. `APPROVED="true"` is a protocol field, not a separate owner approval step. A Triage collaborator can therefore submit any documented action; invite agents accordingly.
+The repository is private. Grant **Triage** access only to AI accounts you fully trust: a Triage collaborator who can apply the queue label has remote shell access to the Termux user's files, tools, and credentials. The shell is intentionally unrestricted to behave like manual Termux; it is **not a security sandbox**. Never invite an untrusted agent and never put secrets in issue bodies or returned output.
 
-## Availability and limits
+GitHub Issues are the only active command/reply transport. The direct HTTP/Vercel relay files in the repository are experimental and are not started by the supervisor. Job commands/results/logs live under `~/.local/state/terhux`, outside the Git checkout. The worker never commits or pushes job data. Code updates use explicit `git fetch` followed by `git merge --ff-only FETCH_HEAD`; no `git pull` is used.
 
-The execution environment is Termux's Android Linux userland, **not** an always-on GitHub VM. It is available only while the phone is powered on, online, and Android allows Termux to run. Requests stay queued in GitHub while the phone is offline. Termux:Boot and background/battery settings help resume it after reboots, but cannot keep a powered-off phone or missing network online.
+See [AI_BRIDGE.md](AI_BRIDGE.md) for the agent/MCP request format and [docs/PHONE_HOST_SETUP.md](docs/PHONE_HOST_SETUP.md) for the phone setup.
 
-Local completed results and pending bridge files are retained and retried after network outages. Delivery is best-effort and **at least once**, not exactly once: an interruption after an external side effect can cause a retry. Check the issue/result before resubmitting after a timeout. These timeouts are not an OS security sandbox; deliberately detached project processes may outlive a command.
+## Timeouts, delivery, and availability
 
-## One-time activation
+- Default command timeout: 600 seconds; owner-configurable up to 1,800 seconds.
+- Captured command output is bounded; the issue comment includes up to 30 KB. Long output is clipped in the comment.
+- A timeout or output cap can leave partial side effects. Delivery is at least once: if Termux stops after a command has side effects but before it records the result, a retry may repeat it.
+- Requests remain in GitHub while the phone is offline. The bridge works only while the phone is powered on, connected, and Android allows Termux to run. Termux:Boot and background/battery settings help, but no phone-based setup can guarantee availability when the phone or network is off.
 
-After Termux and GitHub CLI are installed and GitHub is authenticated on the phone, run:
-
-```bash
-cd ~/terhux/repo && bash ./terhux-sync.sh && git fetch origin main && git merge --ff-only FETCH_HEAD && bash ./terhux-activate.sh
-```
-
-This syncs pending work, updates the code, copies the Termux:Boot launcher, and starts the worker. No PIN or secret setup is involved. The status file is informational, not a live health check.
+This is a phone-hosted Termux environment, not an always-on GitHub VM.

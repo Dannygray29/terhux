@@ -1,24 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
 REPO_DIR="$HOME/terhux/repo"
-LOG_DIR="$REPO_DIR/logs"
+STATE_BASE="${XDG_STATE_HOME:-$HOME/.local/state}"
+STATE_DIR="${TERHUX_STATE_DIR:-$STATE_BASE/terhux}"
+LOG_DIR="$STATE_DIR/logs"
 mkdir -p "$LOG_DIR"
 command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock >/dev/null 2>&1 || true
 if [ -d "$REPO_DIR/.git" ]; then
-  if bash "$REPO_DIR/terhux-sync.sh" >>"$LOG_DIR/boot.log" 2>&1; then
-    if git -C "$REPO_DIR" fetch origin main >>"$LOG_DIR/boot.log" 2>&1; then
-      git -C "$REPO_DIR" merge --ff-only FETCH_HEAD >>"$LOG_DIR/boot.log" 2>&1 || \
-        echo "$(date '+%Y-%m-%d %H:%M:%S') update skipped; fast-forward unavailable" >>"$LOG_DIR/boot.log"
-    else
-      echo "$(date '+%Y-%m-%d %H:%M:%S') update skipped; fetch failed" >>"$LOG_DIR/boot.log"
-    fi
-  else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') update skipped; queue/result sync failed" >>"$LOG_DIR/boot.log"
-  fi
+  bash "$REPO_DIR/terhux-sync.sh" >>"$LOG_DIR/boot.log" 2>&1 || \
+    echo "$(date '+%Y-%m-%d %H:%M:%S') code update skipped; starting installed version" >>"$LOG_DIR/boot.log"
 fi
 chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
 if pgrep -f "$REPO_DIR/terhux-supervisor.sh" >/dev/null 2>&1; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') supervisor already running" >>"$LOG_DIR/boot.log"
   exit 0
 fi
-echo "$(date '+%Y-%m-%d %H:%M:%S') starting Terhux supervisor" >>"$LOG_DIR/boot.log"
+echo "$(date '+%Y-%m-%d %H:%M:%S') starting issue-bridge supervisor" >>"$LOG_DIR/boot.log"
 nohup "$REPO_DIR/terhux-supervisor.sh" >>"$LOG_DIR/supervisor.log" 2>&1 &

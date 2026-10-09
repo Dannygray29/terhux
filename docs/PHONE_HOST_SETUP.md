@@ -1,76 +1,59 @@
-# Termux Phone Host Setup
+# Termux Phone Setup
 
-Terhux executes on the Android phone inside Termux. GitHub Issues are the request and result channel; no GitHub Actions runner or Actions secret is involved.
+Terhux runs on the Android phone in Termux. The phone polls GitHub Issues for shell commands and returns output as issue comments. GitHub is only the mailbox; the code checkout is not used to transport jobs or results.
 
-## 1. Install prerequisites and authenticate GitHub
+## 1. Install and sign in once
 
-In Termux, install the tools used by the watcher and bounded runner:
+In Termux:
 
 ```bash
 pkg update
 pkg install git gh python coreutils
-```
-
-Authenticate GitHub CLI on the phone as the repository owner (or an account with the repository access needed to sync requests/results):
-
-```bash
 gh auth login
 ```
 
-Clone the private repository if it is not present, or update the existing checkout:
+The phone's GitHub CLI account must be able to read the private repository and write issue comments/close issues. Clone the repository if needed:
 
 ```bash
 gh repo clone Dannygray29/terhux ~/terhux/repo
-# Existing checkout:
-cd ~/terhux/repo
-bash ./terhux-sync.sh
-git fetch origin main
-git merge --ff-only FETCH_HEAD
 ```
 
-## 2. Activate the bridge once
+## 2. Activate the issue bridge
 
-Run this one command in Termux:
+For a new clone:
 
 ```bash
-cd ~/terhux/repo && bash ./terhux-sync.sh && git fetch origin main && git merge --ff-only FETCH_HEAD && bash ./terhux-activate.sh
+cd ~/terhux/repo && bash ./terhux-activate.sh
 ```
 
-It preserves pending local queue/results, pulls the latest `main`, installs the boot launcher, and starts the supervisor/worker. **There is no PIN, certificate, encryption helper, or Actions-secret setup.** The `gh` login on the phone is used for polling Issues and syncing results.
-
-## 3. Give AI agents issue access
-
-In GitHub repository settings, invite each trusted AI account with **Triage** permission. Do not grant AI agents Write, Maintain, or Admin access. Triage is the authorization boundary: agents that can create labeled issues can submit any action in the documented allowlist. Keep the invite list limited to agents you trust.
-
-The queue label `terhux-request` already exists. An AI submits a `[Terhux]` issue with a JSON body and that label. See [AI_BRIDGE.md](../AI_BRIDGE.md) for the JSON format and MCP examples.
-
-For MCP-connected agents, connect a GitHub Issues-capable MCP server to an account with Triage access. GitHub's official remote MCP endpoint is `https://api.githubcopilot.com/mcp/`; the client needs issue-create and issue-comment/read operations. The phone does not need to know which AI or MCP client created the issue.
-
-## 4. Start after Android reboot
-
-The activation script copies `boot/start-terhux` into `~/.termux/boot/`. Install the official Termux:Boot add-on from the same source as Termux if you have not already done so. Allow Termux to run in the background and exclude it from battery optimization. Android or an OEM may still stop the process; a wake lock cannot keep a powered-off phone or disconnected network available.
-
-## Updating/restarting
-
-Run `bash ~/terhux/repo/terhux-activate.sh` again after an update. It first syncs local queue/results, then fetches `main` and fast-forwards to the single fetched commit without relying on branch tracking configuration. The Termux:Boot script uses the same sync-and-fetch process before starting the supervisor after reboot.
-
-## Queue, results, and logs
-
-- Labeled GitHub Issues remain queued while the phone has no network.
-- The worker processes requests sequentially, posts the result and a link to `results/issue-<number>.result`, then closes the issue.
-- Local result commits are preserved and retried; the sync loop does not use `git reset --hard`.
-- `~/terhux/repo/logs/bridge.log` records issue activity. `logs/sync.log` records Git fetch/rebase/push retries. Do not put credentials in issue bodies or share logs containing sensitive project output.
-- Delivery is at least once. If the phone stops after an external effect but before the result is published, a retry can repeat work.
-
-## Long-running actions and timeouts
-
-Project build/test/install/deploy actions use a 600-second default wall-time limit. The runner sends `TERM` to the command process group and escalates to `KILL` after five seconds. Captured output is capped at about 256 KiB by default. Results use `STATUS=TIMEOUT` or `STATUS=OUTPUT_LIMIT`; the worker returns to polling afterward.
-
-The phone owner can override the timeout before starting the supervisor, for example:
+For an existing checkout, update it without `git pull` and activate:
 
 ```bash
-export TERHUX_ACTION_TIMEOUT_SECONDS=900
-bash ~/terhux/repo/terhux-start.sh
+cd ~/terhux/repo && git fetch origin main && git merge --ff-only FETCH_HEAD && bash ./terhux-activate.sh
 ```
 
-The maximum is 1,800 seconds; agents cannot set it in a request. A missing `timeout` utility causes long-running actions to fail closed. A timeout cannot roll back changes already made by a project script or external service, and these controls are **not an OS sandbox**: deliberately detached processes may escape process-group termination.
+The update helper uses one explicit fetch and a fast-forward-only merge. It refuses to overwrite tracked local edits and does not reset the checkout. The activation script starts one issue watcher, installs `~/.termux/boot/start-terhux`, and stops retired HTTP/relay and legacy worker services. Let any old job finish before this one-time cutover; stopping an old worker mid-command can leave partial side effects. The normal bridge requires no PIN, certificate, Actions secret, relay URL, or public phone port.
+
+## 3. Let AI agents use Termux
+
+In GitHub repository settings, grant **Triage** only to AI accounts you fully trust. This permission is the remote shell authorization boundary: any Triage agent able to apply `terhux-request` can run shell commands as the Termux user. Do not grant access to untrusted agents or give agents broader repository roles than needed.
+
+An AI creates a `[Terhux]` issue with the `terhux-request` label and places a raw Bash command/script in the body. It reads the issue comments for `TERHUX_STARTED` and `TERHUX_RESULT`. GitHub/MCP clients need issue-create-with-label and issue-comments/read operations; GitHub's remote MCP endpoint is `https://api.githubcopilot.com/mcp/`.
+
+Each request runs in a fresh login Bash starting at the Termux home directory. To work in a project, the AI includes `cd ~/project && ...` in that request. Shell variables and the current directory do not persist between issues.
+
+## 4. Start after reboot
+
+Install the official Termux:Boot add-on from the same source as Termux. The activation script installs the boot launcher. Allow Termux to run in the background and exclude it from battery optimization. Android/OEM restrictions can still stop it; the phone must be powered on and connected.
+
+## State and updates
+
+- GitHub Issues remain queued while the phone is offline; polling defaults to about five seconds.
+- Commands, result receipts, locks, and logs are stored under `~/.local/state/terhux`, outside the repository.
+- The result comment contains status and up to 30 KB of output. Output beyond that is clipped; the Termux runner also applies a bounded output capture.
+- The worker does not commit or push any job data. There is no per-request Git sync and no `git pull` in the active bridge. The boot/activation update uses `git fetch` plus `git merge --ff-only FETCH_HEAD` only.
+- Delivery is at least once. If Termux stops after a command's side effect but before its result is saved and posted, it may be retried. Check the issue before resubmitting.
+
+## Timeouts
+
+The default command wall-time limit is 600 seconds; the owner can set `TERHUX_ACTION_TIMEOUT_SECONDS` up to 1,800 seconds before starting the supervisor. Output capture is bounded (about 256 KiB by default) and the issue comment is capped separately. A timeout can leave partial side effects; a process deliberately detached by a command may outlive the timeout. These limits are not a security sandbox.
