@@ -16,18 +16,19 @@ case "$OUTPUT_BLOCK_LIMIT" in ''|*[!0-9]*) OUTPUT_BLOCK_LIMIT=256;; esac
 [ "$OUTPUT_BLOCK_LIMIT" -le 512 ] || OUTPUT_BLOCK_LIMIT=512
 
 command -v timeout >/dev/null 2>&1 || { echo 'Required timeout utility is missing; install Termux coreutils.' >&2; exit 125; }
+command -v head >/dev/null 2>&1 || { echo 'Required head utility is missing.' >&2; exit 125; }
 OUT_FILE=$(mktemp "${TMPDIR:-/tmp}/terhux-action.XXXXXX") || { echo 'Cannot create action output file.' >&2; exit 125; }
 
+# Do not apply ulimit -f to the command: that also blocks package managers
+# and other legitimate child processes from writing files. Cap only captured output.
+set +e
 (
   cd "$WORKDIR" || exit 126
-  # Bound the captured output file (256 blocks by default) as well as wall time.
-  ulimit -f "$OUTPUT_BLOCK_LIMIT" 2>/dev/null || exit 125
   exec timeout --signal=TERM --kill-after=5s "${SECONDS_LIMIT}s" "$@"
-) >"$OUT_FILE" 2>&1
-RC=$?
+) 2>&1 | head -c "$((OUTPUT_BLOCK_LIMIT * 512))" >"$OUT_FILE"
+PIPE_RC=${PIPESTATUS[0]}
 cat "$OUT_FILE"
 rm -f "$OUT_FILE"
 
-# Bash/Linux encode SIGXFSZ (output cap) as 128 + 25 = 153.
-[ "$RC" -eq 153 ] && exit 122
-exit "$RC"
+# Report timeout's status; output truncation does not alter the child exit code.
+exit "$PIPE_RC"
