@@ -253,7 +253,18 @@ def main() -> int:
     ]
     if not requests:
         return 0
-    requests.sort(key=lambda issue: int(issue.get("number", 0)))
+    # Run lightweight connectivity diagnostics before potentially long project
+    # builds or installs, so a stale job cannot hide whether the bridge is alive.
+    def queue_priority(issue: dict) -> tuple[int, int]:
+        try:
+            fields = json.loads(str(issue.get("body") or ""))
+        except (json.JSONDecodeError, TypeError):
+            fields = {}
+        action = fields.get("ACTION") if isinstance(fields, dict) else None
+        priority = 0 if action in {"terhux-runner-version", "terhux-runtime-status"} else 1
+        return priority, int(issue.get("number", 0))
+
+    requests.sort(key=queue_priority)
     try:
         process_issue(requests[0])
     except (OSError, subprocess.TimeoutExpired, KeyError, ValueError) as exc:
