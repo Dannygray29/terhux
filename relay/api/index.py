@@ -68,7 +68,11 @@ class handler(BaseHTTPRequestHandler):
         self.send_json(404, {"ok": False, "error": "not_found"})
 
     def do_POST(self) -> None:
-        if not auth(self):
+        if self.path == "/v1/agent/jobs":
+            if not agent_auth(self):
+                self.send_json(401, {"ok": False, "error": "agent_unauthorized"})
+                return
+        elif not auth(self):
             self.send_json(401, {"ok": False, "error": "unauthorized"})
             return
 
