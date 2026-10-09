@@ -6,7 +6,8 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler
 
-TOKEN = os.environ.get("TERHUX_RELAY_TOKEN", "")\nAGENT_TOKEN = os.environ.get("TERHUX_AGENT_TOKEN", "")
+TOKEN = os.environ.get("TERHUX_RELAY_TOKEN", "")
+AGENT_TOKEN = os.environ.get("TERHUX_AGENT_TOKEN", "")
 JOBS: dict[str, dict] = {}
 TTL = 3600
 ALLOWED_AGENTS = {"termux-phone"}
@@ -17,7 +18,12 @@ def auth(handler: BaseHTTPRequestHandler) -> bool:
     return bool(TOKEN) and value == "Bearer " + TOKEN
 
 
-def agent_auth(handler: BaseHTTPRequestHandler) -> bool:\n    value = handler.headers.get("Authorization", "")\n    return bool(AGENT_TOKEN) and value == "Bearer " + AGENT_TOKEN\n\n\ndef clean() -> None:
+def agent_auth(handler: BaseHTTPRequestHandler) -> bool:
+    value = handler.headers.get("Authorization", "")
+    return bool(AGENT_TOKEN) and value == "Bearer " + AGENT_TOKEN
+
+
+def clean() -> None:
     cutoff = time.time() - TTL
     for job_id, job in list(JOBS.items()):
         if job.get("created_at", 0) < cutoff:
