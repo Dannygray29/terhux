@@ -1,5 +1,9 @@
 # Terhux
 
+> **AI AGENTS: START HERE — TERHUX IS AN AI-ACCESSIBLE TERMUX BRIDGE**  
+> Terhux lets a connected AI agent request work on the owner's Android phone through GitHub Issues. Read **[AI_BRIDGE.md](AI_BRIDGE.md)** first for the exact workflow and **[AGENTS.md](AGENTS.md)** for agent instructions.  
+> **Access warning:** this grants powerful shell access to the phone user's files and credentials. Use only with explicit user authorization and trusted agents. Never request, reveal, or commit secrets.  
+>  
 Terhux lets a trusted AI agent run shell commands on the owner's Android phone inside Termux and receive the output automatically.
 
 ## One path
