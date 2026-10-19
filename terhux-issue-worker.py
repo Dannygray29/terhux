@@ -314,7 +314,8 @@ def main() -> int:
         log(f"issue poll failed: {type(exc).__name__}")
         return 1
     if listed.returncode:
-        log(f"issue poll failed: gh exit {listed.returncode}")
+        detail = listed.stderr.decode("utf-8", errors="replace").strip()[:1200]
+        log(f"issue poll failed: gh exit {listed.returncode}; stderr={detail}; repo={REPO_SLUG}; cwd={REPO_DIR}")
         return 1
     try:
         issues = json.loads(listed.stdout)
