@@ -4,26 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       symbol:
-        description: "Classic futures symbol, e.g. BTCUSDT"
+        description: "Classic USDT futures symbol, e.g. BTCUSDT"
         required: true
         type: string
         default: "BTCUSDT"
-      product_type:
-        description: "Classic futures product type"
-        required: true
-        type: choice
-        options:
-          - USDT-FUTURES
-          - COIN-FUTURES
-          - USDC-FUTURES
-        default: USDT-FUTURES
       enable_demo_orders:
         description: "Place a demo market order only when a fresh EMA crossover occurs"
         required: true
         type: boolean
         default: false
       order_size:
-        description: "Demo order quantity in contract base units; review before enabling"
+        description: "Demo order quantity; maximum accepted by this starter is 0.001"
         required: true
         type: string
         default: "0.001"
@@ -43,7 +34,7 @@ jobs:
           BITGET_API_KEY: ${{ secrets.BITGET_DEMO_API_KEY }}
           BITGET_API_SECRET: ${{ secrets.BITGET_DEMO_API_SECRET }}
           BITGET_API_PASSPHRASE: ${{ secrets.BITGET_DEMO_API_PASSPHRASE }}
-          BITGET_PRODUCT_TYPE: ${{ inputs.product_type }}
+          BITGET_PRODUCT_TYPE: "USDT-FUTURES"
           BITGET_SYMBOL: ${{ inputs.symbol }}
           BITGET_DEMO: "true"
           ENABLE_DEMO_ORDERS: ${{ inputs.enable_demo_orders }}
