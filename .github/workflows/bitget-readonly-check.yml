@@ -1,0 +1,38 @@
+name: Bitget read-only connection check
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo_mode:
+        description: "Use Bitget demo trading API header (recommended for initial test)"
+        required: true
+        type: boolean
+        default: true
+      product_type:
+        description: "Classic futures product type"
+        required: true
+        type: choice
+        options:
+          - USDT-FUTURES
+          - COIN-FUTURES
+          - USDC-FUTURES
+        default: USDT-FUTURES
+
+permissions:
+  contents: read
+
+jobs:
+  readonly-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check out private repository
+        uses: actions/checkout@v4
+      - name: Run read-only account authentication check
+        env:
+          BITGET_API_KEY: ${{ secrets.BITGET_API_KEY }}
+          BITGET_API_SECRET: ${{ secrets.BITGET_API_SECRET }}
+          BITGET_API_PASSPHRASE: ${{ secrets.BITGET_API_PASSPHRASE }}
+          BITGET_DEMO: ${{ inputs.demo_mode }}
+          BITGET_PRODUCT_TYPE: ${{ inputs.product_type }}
+        run: python projects/bitget-futures-bot/connect_readonly.py
