@@ -1,4 +1,4 @@
-"""Bitget Classic v2 futures EMA crossover demo bot.
+"""Bitget Classic v2 USDT futures EMA crossover demo bot.
 
 Market analysis uses public data. Optional order placement is hard-wired to the
 Bitget demo environment via paptrading=1. This module has no live-trading mode.
@@ -18,7 +18,6 @@ from urllib.request import Request, urlopen
 BASE_URL = "https://api.bitget.com"
 CANDLES_PATH = "/api/v2/mix/market/candles"
 ORDER_PATH = "/api/v2/mix/order/place-order"
-ALLOWED_PRODUCTS = {"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 
 
 def request_json(method, path, body=None, signed=False):
@@ -52,7 +51,6 @@ def request_json(method, path, body=None, signed=False):
     except (URLError, TimeoutError, json.JSONDecodeError):
         raise RuntimeError("Network, timeout, or response parsing error") from None
     if not isinstance(result, dict) or result.get("code") != "00000":
-        # Never print raw API responses; they can include sensitive account details.
         raise RuntimeError("Bitget API rejected the request; check API version, symbol, permissions, and demo key.")
     return result
 
@@ -60,11 +58,11 @@ def request_json(method, path, body=None, signed=False):
 def ema(values, period):
     alpha = 2 / (period + 1)
     current = values[0]
-    out = [current]
+    output = [current]
     for value in values[1:]:
         current = alpha * value + (1 - alpha) * current
-        out.append(current)
-    return out
+        output.append(current)
+    return output
 
 
 def main():
@@ -75,8 +73,8 @@ def main():
 
     symbol = os.environ.get("BITGET_SYMBOL", "BTCUSDT").strip().upper()
     product = os.environ.get("BITGET_PRODUCT_TYPE", "USDT-FUTURES").strip()
-    if product not in ALLOWED_PRODUCTS or not symbol or len(symbol) > 30:
-        print("FAILED: Invalid product type or symbol.")
+    if product != "USDT-FUTURES" or not symbol or len(symbol) > 30:
+        print("FAILED: This demo build supports USDT-FUTURES only; check the symbol.")
         return 2
 
     query = urlencode({"symbol": symbol, "productType": product, "granularity": "1m", "limit": "100"})
@@ -85,7 +83,6 @@ def main():
         print("FAILED: Not enough candle data to calculate the signal.")
         return 3
 
-    # API candle rows: timestamp, open, high, low, close, base volume, quote volume.
     try:
         ordered = sorted(candles, key=lambda row: int(row[0]))
         closes = [float(row[4]) for row in ordered if isinstance(row, list) and len(row) >= 5]
@@ -98,12 +95,12 @@ def main():
 
     fast = ema(closes, 9)
     slow = ema(closes, 21)
-    prev_diff = fast[-2] - slow[-2]
-    current_diff = fast[-1] - slow[-1]
+    previous_difference = fast[-2] - slow[-2]
+    current_difference = fast[-1] - slow[-1]
     signal = "HOLD"
-    if prev_diff <= 0 and current_diff > 0:
+    if previous_difference <= 0 and current_difference > 0:
         signal = "BUY"
-    elif prev_diff >= 0 and current_diff < 0:
+    elif previous_difference >= 0 and current_difference < 0:
         signal = "SELL"
 
     print("Mode: DEMO ONLY")
@@ -117,9 +114,8 @@ def main():
         print("Order placement: skipped (no crossover or demo orders disabled).")
         return 0
 
-    size_text = os.environ.get("BITGET_ORDER_SIZE", "0.001").strip()
     try:
-        size = float(size_text)
+        size = float(os.environ.get("BITGET_ORDER_SIZE", "0.001").strip())
         if not (0 < size <= 0.001):
             print("BLOCKED: Demo order size must be greater than 0 and no more than 0.001.")
             return 4
@@ -127,7 +123,6 @@ def main():
         print("BLOCKED: Invalid demo order size.")
         return 4
 
-    # Explicitly limited to a small demo order. No live-mode code path exists.
     order = {
         "symbol": symbol,
         "productType": product,
@@ -140,7 +135,7 @@ def main():
         "clientOid": "grey-demo-" + uuid.uuid4().hex[:20],
     }
     result = request_json("POST", ORDER_PATH, order, signed=True)
-    data = result.get("data") if isinstance(result, dict) else None
+    data = result.get("data")
     if isinstance(data, dict) and data.get("orderId"):
         print("DEMO ORDER ACCEPTED by Bitget. Order ID:", str(data["orderId"]))
         print("This is a virtual demo order, not a live trade.")
