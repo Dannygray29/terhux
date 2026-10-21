@@ -1,0 +1,51 @@
+name: Bitget demo analysis and trading
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "Classic futures symbol, e.g. BTCUSDT"
+        required: true
+        type: string
+        default: "BTCUSDT"
+      product_type:
+        description: "Classic futures product type"
+        required: true
+        type: choice
+        options:
+          - USDT-FUTURES
+          - COIN-FUTURES
+          - USDC-FUTURES
+        default: USDT-FUTURES
+      enable_demo_orders:
+        description: "Place a demo market order only when a fresh EMA crossover occurs"
+        required: true
+        type: boolean
+        default: false
+      order_size:
+        description: "Demo order quantity in contract base units; review before enabling"
+        required: true
+        type: string
+        default: "0.001"
+
+permissions:
+  contents: read
+
+jobs:
+  demo-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check out private repository
+        uses: actions/checkout@v4
+      - name: Run demo analysis (and optional demo-only order)
+        env:
+          BITGET_API_KEY: ${{ secrets.BITGET_DEMO_API_KEY }}
+          BITGET_API_SECRET: ${{ secrets.BITGET_DEMO_API_SECRET }}
+          BITGET_API_PASSPHRASE: ${{ secrets.BITGET_DEMO_API_PASSPHRASE }}
+          BITGET_PRODUCT_TYPE: ${{ inputs.product_type }}
+          BITGET_SYMBOL: ${{ inputs.symbol }}
+          BITGET_DEMO: "true"
+          ENABLE_DEMO_ORDERS: ${{ inputs.enable_demo_orders }}
+          BITGET_ORDER_SIZE: ${{ inputs.order_size }}
+        run: python projects/bitget-futures-bot/demo_bot.py
