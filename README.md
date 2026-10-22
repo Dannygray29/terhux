@@ -12,6 +12,17 @@ Terhux lets a trusted AI agent run shell commands on the owner's Android phone i
 
 No JSON wrapper is needed for new requests. To work in a project, include `cd ~/project && ...` in the command. Each issue is a fresh shell, so working directory and shell variables do not persist between requests.
 
+## Required operator loop
+
+Terhux work must be handled serially, not as a fire-and-forget batch:
+
+1. Submit one command as one labeled issue.
+2. Wait for both `TERHUX_STARTED:issue-N` and the final `TERHUX_RESULT:issue-N` comment. The final result must include status, exit code, and output.
+3. Verify the result before creating the next dependent issue. If successful, continue to the next logical task without asking for routine confirmation. If it fails or needs a user decision, stop and report the exact blocker.
+4. Keep routine progress narration out of the conversation; report only actionable failures, blockers, or important decisions. Never report success based only on the start marker.
+
+The issue worker processes at most one queued request per poll and does not finish that request until the command result is available and its result comment has been posted. This provides serial execution within the worker; the AI operator is still responsible for waiting for the result before submitting a dependent task.
+
 ## Access and security
 
 The repository is private. Grant **Triage** access only to AI accounts you fully trust: a Triage collaborator who can apply the queue label has remote shell access to the Termux user's files, tools, and credentials. The shell is intentionally unrestricted to behave like manual Termux; it is **not a security sandbox**. Never invite an untrusted agent and never put secrets in issue bodies or returned output.
