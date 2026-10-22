@@ -131,7 +131,7 @@ def validate_request(body: str, issue_number: int) -> tuple[str, str]:
 
     # Never execute issue prose/Markdown as shell. Raw shell requests must be
     # explicitly marked with TERHUX-SHELL-V1 on the first line.
-    marker = "TERHUX-SHELL-V1\\n"
+    marker = "TERHUX-SHELL-V1\n"
     if not body.startswith(marker):
         raise ValueError(
             "issue body is not an executable request. For a reviewed shell task, "
@@ -143,10 +143,10 @@ def validate_request(body: str, issue_number: int) -> tuple[str, str]:
         raise ValueError("TERHUX-SHELL-V1 request has an empty command")
     command_b64 = base64.b64encode(command.encode("utf-8")).decode("ascii")
     command_text = (
-        f"ID={request_id}\\n"
-        "ACTION=shell-command\\n"
-        f"COMMAND_B64={command_b64}\\n"
-        "APPROVED=true\\n"
+        f"ID={request_id}\n"
+        "ACTION=shell-command\n"
+        f"COMMAND_B64={command_b64}\n"
+        "APPROVED=true\n"
     )
     return request_id, command_text
 
