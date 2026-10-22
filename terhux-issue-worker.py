@@ -38,7 +38,7 @@ def log(message: str) -> None:
 
 def gh(args: list[str], *, timeout: int = 30) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
-        ["gh", *args, "--repo", REPO_SLUG],
+        ["gh", "--repo", REPO_SLUG, *args],
         cwd=REPO_DIR,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
@@ -259,12 +259,8 @@ def summarize_result(request_id: str, result_file: Path) -> tuple[str, str]:
 
 def process_issue(issue: dict) -> None:
     number = int(issue["number"])
-    title = str(issue.get("title") or "")
     body = str(issue.get("body") or "")
     if number < 1:
-        return
-    if not title.startswith("[Terhux]"):
-        reject_issue(number, "TITLE", "Request titles must start with `[Terhux]`. No command was executed.")
         return
     try:
         request_id, command_text = validate_request(body, number)
@@ -328,7 +324,6 @@ def main() -> int:
     requests = [
         issue for issue in issues
         if isinstance(issue, dict)
-        and str(issue.get("title") or "").startswith("[Terhux]")
         and any(
             isinstance(label, dict) and label.get("name") == LABEL
             for label in (issue.get("labels") or [])
