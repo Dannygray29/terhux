@@ -37,7 +37,6 @@ restart_old_service() {
 trap restart_old_service EXIT
 
 bash "$REPO_DIR/terhux-sync.sh" || fail "safe code update failed; local state was preserved"
-chmod +x "$REPO_DIR/boot/start-terhux"
 mkdir -p "$HOME/.termux/boot"
 cp "$REPO_DIR/boot/start-terhux" "$HOME/.termux/boot/start-terhux"
 chmod +x "$HOME/.termux/boot/start-terhux"
