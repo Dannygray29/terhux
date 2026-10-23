@@ -294,8 +294,21 @@ def process_issue(issue: dict) -> None:
 
         result_file = runner_result(request_id, command_text)
         if not result_file.is_file():
-            log(f"runner did not publish a result for issue #{number}; leaving it open for retry")
-            return
+            # A started request must always reach a terminal report. Missing
+            # runner output is unknown outcome, so record ERROR (never success).
+            RESULT_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+            tmp_result = result_file.with_name(result_file.name + f".{os.getpid()}.tmp")
+            tmp_result.write_text(
+                f"STATUS=ERROR\nEXIT_CODE=124\nSTDOUT_BEGIN:{request_id}\n"
+                "Runner exited without publishing a result; execution outcome is unknown. "
+                "Inspect Termux logs before deliberately retrying.\n"
+                f"STDOUT_END:{request_id}\nSTDERR_BEGIN:{request_id}\n"
+                f"STDERR_END:{request_id}\n",
+                encoding="utf-8",
+            )
+            os.chmod(tmp_result, 0o600)
+            os.replace(tmp_result, result_file)
+            log(f"runner omitted result for issue #{number}; wrote terminal ERROR record")
 
         status, comment = summarize_result(request_id, result_file)
         if respond_once(number, f"TERHUX_RESULT:{request_id}", comment):
