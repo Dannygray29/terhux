@@ -18,17 +18,29 @@ case "$OUTPUT_BLOCK_LIMIT" in ''|*[!0-9]*) OUTPUT_BLOCK_LIMIT=256;; esac
 command -v timeout >/dev/null 2>&1 || { echo 'Required timeout utility is missing; install Termux coreutils.' >&2; exit 125; }
 command -v head >/dev/null 2>&1 || { echo 'Required head utility is missing.' >&2; exit 125; }
 OUT_FILE=$(mktemp "${TMPDIR:-/tmp}/terhux-action.XXXXXX") || { echo 'Cannot create action output file.' >&2; exit 125; }
+CAP_BYTES=$((OUTPUT_BLOCK_LIMIT * 512))
+TRIM_FILE="$OUT_FILE.trim"
+trap 'rm -f "$OUT_FILE" "$TRIM_FILE"' EXIT
 
 # Do not apply ulimit -f to the command: that also blocks package managers
-# and other legitimate child processes from writing files. Cap only captured output.
+# and other legitimate child processes from writing files. Capture one extra
+# byte so output overflow is distinguishable from a command that exits cleanly
+# after producing exactly CAP_BYTES.
 set +e
 (
   cd "$WORKDIR" || exit 126
   exec timeout --signal=TERM --kill-after=5s "${SECONDS_LIMIT}s" "$@"
-) 2>&1 | head -c "$((OUTPUT_BLOCK_LIMIT * 512))" >"$OUT_FILE"
+) 2>&1 | head -c "$((CAP_BYTES + 1))" >"$OUT_FILE"
 PIPE_RC=${PIPESTATUS[0]}
+OUTPUT_BYTES=$(wc -c <"$OUT_FILE")
+if [ "$OUTPUT_BYTES" -gt "$CAP_BYTES" ]; then
+  head -c "$CAP_BYTES" "$OUT_FILE" >"$TRIM_FILE"
+  mv -f "$TRIM_FILE" "$OUT_FILE"
+  PIPE_RC=122
+fi
 cat "$OUT_FILE"
-rm -f "$OUT_FILE"
+rm -f "$OUT_FILE" "$TRIM_FILE"
+trap - EXIT
 
-# Report timeout's status; output truncation does not alter the child exit code.
+# Exit 122 specifically means captured output exceeded the configured cap.
 exit "$PIPE_RC"
