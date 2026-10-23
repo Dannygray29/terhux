@@ -1,5 +1,18 @@
+# Runtime state and generated outputs stay outside version control.
 /logs/
 /commands/.incoming/
 /commands/.running/
 /results/issue-*.result
+
+# Local secrets and machine-specific configuration.
+.env
+.env.*
+!.env.example
+
+# Python-generated files.
+__pycache__/
 *.py[cod]
+
+# Local projects, working copies, and safety backups must not enter Terhux commits.
+/.work-grey-browser-agent/
+terhux-issue-worker.py.pre-*
