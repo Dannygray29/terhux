@@ -13,19 +13,22 @@ command -v python3 >/dev/null 2>&1 || fail "install Python with: pkg install pyt
 gh auth status -h github.com >/dev/null 2>&1 || fail "sign in to GitHub on this phone with: gh auth login"
 
 # Stop the service before updating so an old watcher cannot respawn mid-update.
-pkill -f '[t]erhux-supervisor.sh' >/dev/null 2>&1 || true
+pkill -f "^.*bash $REPO_DIR/terhux-supervisor\\.sh$" >/dev/null 2>&1 || true
 sleep 1
-pkill -f '[t]erhux-watch.sh' >/dev/null 2>&1 || true
+pkill -f "^.*bash $REPO_DIR/terhux-watch\\.sh$" >/dev/null 2>&1 || true
 # The direct HTTP and relay servers are retired; GitHub Issues is the single active path.
-pkill -f '[t]erhux-direct.py' >/dev/null 2>&1 || true
-pkill -f '[t]erhux-relay.py' >/dev/null 2>&1 || true
+pkill -f "^.*python3 $REPO_DIR/terhux-direct\\.py$" >/dev/null 2>&1 || true
+pkill -f "^.*python3 $REPO_DIR/terhux-relay\\.py$" >/dev/null 2>&1 || true
 # Disable old runit queues and standalone workers so they cannot consume the same work.
 if command -v sv >/dev/null 2>&1; then
   sv down terhux >/dev/null 2>&1 || true
   sv down terhux2 >/dev/null 2>&1 || true
 fi
-for old_worker in '[t]erhux-worker.sh' '[t]erhux-controller.sh' '[t]erhux-task.sh' '[t]erhux-ai-agent.js' '[t]erhux2-runner.sh'; do
-  pkill -f "$old_worker" >/dev/null 2>&1 || true
+for old_worker in terhux-worker.sh terhux-controller.sh terhux-task.sh terhux-ai-agent.js terhux2-runner.sh; do
+  case "$old_worker" in
+    *.js) pkill -f "^.*node $REPO_DIR/$old_worker( .*)?$" >/dev/null 2>&1 || true ;;
+    *) pkill -f "^.*(bash|sh) $REPO_DIR/$old_worker( .*)?$" >/dev/null 2>&1 || true ;;
+  esac
 done
 
 restart_old_service() {
