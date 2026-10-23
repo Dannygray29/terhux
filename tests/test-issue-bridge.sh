@@ -60,7 +60,7 @@ import json, sys
 json.dump([{
     "number": 101,
     "title": "[Terhux] Run a raw shell smoke test",
-    "body": "printf 'RAW_SHELL_OK\\n'\nprintf 'PWD=%s\\n' \"$PWD\"\n",
+    "body": "TERHUX-SHELL-V1\\nprintf 'RAW_SHELL_OK\\n'\nprintf 'PWD=%s\\n' \"$PWD\"\n",
     "labels": [{"name": "terhux-request"}],
 }], open(sys.argv[1], "w"))
 PY
@@ -84,7 +84,7 @@ import json, sys
 json.dump([{
     "number": 104,
     "title": "[Terhux] Verify clipped output comment",
-    "body": "python3 -c 'print(\"`\" * 40000)'",
+    "body": "TERHUX-SHELL-V1\\npython3 -c 'print(\"`\" * 40000)'",
     "labels": [{"name": "terhux-request"}],
 }], open(sys.argv[1], "w"))
 PY
