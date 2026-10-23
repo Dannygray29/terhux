@@ -9,8 +9,8 @@ if [ -d "$REPO_DIR/.git" ]; then
   bash "$REPO_DIR/terhux-sync.sh" >>"$LOG_DIR/boot.log" 2>&1 || \
     echo "$(date '+%Y-%m-%d %H:%M:%S') code update skipped; starting installed version" >>"$LOG_DIR/boot.log"
 fi
-chmod +x "$REPO_DIR"/terhux-*.sh 2>/dev/null || true
-if pgrep -f "$REPO_DIR/terhux-supervisor.sh" >/dev/null 2>&1; then
+# Do not chmod tracked scripts at boot; activation manages installed boot permissions.
+if pgrep -f "^.*bash $REPO_DIR/terhux-supervisor\.sh$" >/dev/null 2>&1; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') supervisor already running" >>"$LOG_DIR/boot.log"
   exit 0
 fi
