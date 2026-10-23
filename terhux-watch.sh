@@ -33,7 +33,7 @@ while true; do
     continue
   fi
 
-  if ! gh auth status -h github.com >/dev/null 2>>"$LOG_DIR/bridge.log"; then
+  if ! gh auth status -h github.com >/dev/null 2>&1; then
     log "GitHub authentication unavailable; run gh auth login in Termux"
     sleep "$delay"
     [ "$delay" -lt "$MAX_BACKOFF" ] && delay=$((delay * 2))
