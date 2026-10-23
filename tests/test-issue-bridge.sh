@@ -17,6 +17,8 @@ done
 cat > "$BIN_DIR/gh" <<'GH'
 #!/usr/bin/env bash
 set -euo pipefail
+# GitHub CLI global flags appear before the subcommand.
+if [ "${1:-}" = "--repo" ]; then shift 2; fi
 case "${1:-} ${2:-}" in
   'issue list')
     [[ " $* " == *" --label terhux-request "* ]] || { echo 'worker did not filter by queue label' >&2; exit 3; }
