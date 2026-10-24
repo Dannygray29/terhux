@@ -1,23 +1,23 @@
 # Terhux client for GREY Chrome Bridge
 
-This adds a small Termux-side CLI for the Android companion. It is **not automatic CapCut editing**: it can check the service, read visible non-editable labels, and ask for explicit confirmation before a tap or scroll. It does not submit forms or extract browser session data.
+The goal is **one-tap connection after initial Android permissions**. This is visible-UI control only, not automatic CapCut editing.
 
-## Prerequisites
-1. Install the debug APK from the bridge release path and open GREY Chrome Bridge.
-2. Manually enable **GREY Chrome Bridge** in Android Accessibility Settings.
-3. Keep the service active.
-4. Run these commands from the Terhux repo directory in Termux:
+## First-time setup
+1. Install and open GREY Chrome Bridge.
+2. Manually enable its Accessibility Service in Android Accessibility Settings. Android does not allow apps to grant this permission themselves.
+3. In Termux, enable **Allow external apps to run commands** in Termux settings. This is required for the app's **Connect to Terhux** button.
+4. Ensure the repository is at `~/terhux/repo` and the client file exists at `~/terhux/repo/grey-chrome-bridge/terhux-client/receive-token.sh`.
+5. Return to GREY Chrome Bridge and tap **Connect to Terhux**. It transfers the random token locally to Termux and stores it in `~/.config/grey-chrome-bridge/token` with owner-only permissions. No copying, typing, or sending the token to chat is required.
+6. In Termux, verify with:
    ```sh
-   bash grey-chrome-bridge/terhux-client/setup-token.sh
-   bash grey-chrome-bridge/terhux-client/bridge.sh status
-   bash grey-chrome-bridge/terhux-client/bridge.sh screen
+   bash ~/terhux/repo/grey-chrome-bridge/terhux-client/bridge.sh status
+   bash ~/terhux/repo/grey-chrome-bridge/terhux-client/bridge.sh screen
    ```
-5. When prompted, paste the token shown in the app. Input is hidden. It is stored under `~/.config/grey-chrome-bridge/token` with owner-only permissions. Do not paste the token into chat, GitHub, or an issue.
 
 ## Commands
-- `bash grey-chrome-bridge/terhux-client/bridge.sh status`
-- `bash grey-chrome-bridge/terhux-client/bridge.sh screen`
-- `bash grey-chrome-bridge/terhux-client/bridge.sh tap X Y` — requires typing `YES`
-- `bash grey-chrome-bridge/terhux-client/bridge.sh scroll up` or `down` — requires typing `YES`
+- `bash ~/terhux/repo/grey-chrome-bridge/terhux-client/bridge.sh status`
+- `bash ~/terhux/repo/grey-chrome-bridge/terhux-client/bridge.sh screen`
+- `bash ~/terhux/repo/grey-chrome-bridge/terhux-client/bridge.sh tap X Y` — asks for confirmation
+- `bash ~/terhux/repo/grey-chrome-bridge/terhux-client/bridge.sh scroll up|down` — asks for confirmation
 
-The service must be listening on `127.0.0.1:8765`. If status fails, check that the APK is installed and its accessibility service is manually enabled. The CLI has not been tested against a live device yet. A successful build does not prove CapCut control; the first real status/screen test must be run after installation.
+The service listens only on `127.0.0.1:8765`. The token stays on-device. The APK and live-device connection have not yet been tested on the user's phone. A successful build does not prove CapCut control; verify the status/screen commands after installation.
