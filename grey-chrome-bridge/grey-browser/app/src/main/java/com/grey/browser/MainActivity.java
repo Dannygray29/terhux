@@ -103,6 +103,9 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(CHROME);
+        // Keep browser chrome comfortably below the Android status bar.
+        // The window is configured to fit system windows; this adds extra breathing room.
+        root.setPadding(0, dp(12), 0, 0);
 
         HorizontalScrollViewCompat tabsScroller = new HorizontalScrollViewCompat(this);
         tabsScroller.setHorizontalScrollBarEnabled(false);
