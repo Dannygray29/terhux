@@ -1,0 +1,38 @@
+{
+  "name": "GREY Chrome Bridge",
+  "version": 1,
+  "bind": "127.0.0.1",
+  "authentication": "bearer-token",
+  "initialCapabilities": [
+    "health",
+    "active-window-metadata",
+    "visible-text-read"
+  ],
+  "forbiddenCapabilities": [
+    "cookie-export",
+    "password-read",
+    "otp-read",
+    "silent-form-submit",
+    "silent-message-send",
+    "silent-purchase",
+    "silent-terms-acceptance"
+  ],
+  "requiresExplicitUserSetup": [
+    "install-companion",
+    "enable-accessibility-service"
+  ],
+  "approvalRequired": [
+    "submit-form",
+    "send-message",
+    "purchase",
+    "accept-terms"
+  ],
+  "browserCommands": [
+    "navigate",
+    "back",
+    "forward",
+    "reload",
+    "status"
+  ],
+  "binding": "127.0.0.1:8789"
+}
