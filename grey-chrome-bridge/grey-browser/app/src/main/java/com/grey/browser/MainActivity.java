@@ -106,35 +106,35 @@ public class MainActivity extends Activity {
         tabStrip = new LinearLayout(this);
         tabStrip.setOrientation(LinearLayout.HORIZONTAL);
         tabStrip.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        tabStrip.setPadding(dp(5), dp(3), dp(5), dp(3));
-        tabsScroller.addView(tabStrip, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(38)));
-        root.addView(tabsScroller, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)));
+        tabStrip.setPadding(dp(4), dp(1), dp(4), dp(1));
+        tabsScroller.addView(tabStrip, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30)));
+        root.addView(tabsScroller, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(android.view.Gravity.CENTER_VERTICAL);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
-        toolbar.setPadding(dp(4), dp(2), dp(4), dp(2));
+        toolbar.setPadding(dp(3), dp(1), dp(3), dp(1));
         toolbar.setBackgroundColor(CHROME);
 
         Button home = iconButton("⌂", "Home");
-        home.setTextSize(20);
+        home.setTextSize(18);
         home.setOnClickListener(v -> navigate(HOME));
-        toolbar.addView(home, new LinearLayout.LayoutParams(dp(34), dp(40)));
+        toolbar.addView(home, new LinearLayout.LayoutParams(dp(29), dp(34)));
 
         Button back = iconButton("‹", "Back");
-        back.setTextSize(24);
+        back.setTextSize(21);
         back.setOnClickListener(v -> { if (webView != null && webView.canGoBack()) webView.goBack(); });
-        toolbar.addView(back, new LinearLayout.LayoutParams(dp(30), dp(40)));
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(25), dp(34)));
 
         Button forward = iconButton("›", "Forward");
-        forward.setTextSize(24);
+        forward.setTextSize(21);
         forward.setOnClickListener(v -> { if (webView != null && webView.canGoForward()) webView.goForward(); });
-        toolbar.addView(forward, new LinearLayout.LayoutParams(dp(30), dp(40)));
+        toolbar.addView(forward, new LinearLayout.LayoutParams(dp(25), dp(34)));
 
         Button reload = iconButton("↻", "Reload");
-        reload.setTextSize(20);
+        reload.setTextSize(18);
         reload.setOnClickListener(v -> { if (webView != null) webView.reload(); });
-        toolbar.addView(reload, new LinearLayout.LayoutParams(dp(32), dp(40)));
+        toolbar.addView(reload, new LinearLayout.LayoutParams(dp(27), dp(34)));
 
         LinearLayout addressPill = new LinearLayout(this);
         addressPill.setGravity(android.view.Gravity.CENTER_VERTICAL);
@@ -144,7 +144,7 @@ public class MainActivity extends Activity {
         siteIcon.setText("●");
         siteIcon.setTextColor(CYAN);
         siteIcon.setTextSize(10);
-        addressPill.addView(siteIcon, new LinearLayout.LayoutParams(dp(14), dp(34)));
+        addressPill.addView(siteIcon, new LinearLayout.LayoutParams(dp(12), dp(30)));
         address = new EditText(this);
         address.setSingleLine(true);
         address.setTextSize(12);
@@ -156,17 +156,17 @@ public class MainActivity extends Activity {
         address.setPadding(dp(2), 0, dp(2), 0);
         address.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
-        addressPill.addView(address, new LinearLayout.LayoutParams(0, dp(36), 1));
+        addressPill.addView(address, new LinearLayout.LayoutParams(0, dp(30), 1));
         Button bookmark = iconButton("☆", "Bookmark");
         bookmark.setTextSize(17);
         bookmark.setOnClickListener(v -> Toast.makeText(this, "Bookmark feature coming soon", Toast.LENGTH_SHORT).show());
-        addressPill.addView(bookmark, new LinearLayout.LayoutParams(dp(28), dp(36)));
-        toolbar.addView(addressPill, new LinearLayout.LayoutParams(0, dp(38), 1));
+        addressPill.addView(bookmark, new LinearLayout.LayoutParams(dp(25), dp(30)));
+        toolbar.addView(addressPill, new LinearLayout.LayoutParams(0, dp(32), 1));
 
         Button menu = iconButton("⋮", "More options");
         menu.setTextSize(20);
         menu.setOnClickListener(this::showMenu);
-        toolbar.addView(menu, new LinearLayout.LayoutParams(dp(30), dp(40)));
+        toolbar.addView(menu, new LinearLayout.LayoutParams(dp(26), dp(34)));
         root.addView(toolbar);
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
             final int index = i;
             LinearLayout chip = new LinearLayout(this);
             chip.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            chip.setPadding(dp(9), 0, dp(5), 0);
+            chip.setPadding(dp(7), 0, dp(4), 0);
             chip.setBackground(roundRect(i == activeTab ? Color.rgb(42, 45, 53) : CHROME, dp(8)));
             TextView favicon = new TextView(this);
             favicon.setText("●");
@@ -236,7 +236,7 @@ public class MainActivity extends Activity {
         plus.setTextColor(INK);
         plus.setGravity(android.view.Gravity.CENTER);
         plus.setOnClickListener(v -> addTab(HOME));
-        tabStrip.addView(plus, new LinearLayout.LayoutParams(dp(36), dp(32)));
+        tabStrip.addView(plus, new LinearLayout.LayoutParams(dp(30), dp(28)));
     }
 
     private void closeTabAt(int index) {
