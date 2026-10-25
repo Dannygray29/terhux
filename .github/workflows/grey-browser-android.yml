@@ -1,4 +1,5 @@
 name: Build GREY Browser APK
+# Re-trigger compact UI APK build after toolbar update.
 
 on:
   workflow_dispatch:
