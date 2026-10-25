@@ -71,6 +71,11 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle state) {
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            getWindow().getDecorView().setSystemUiVisibility(0);
+        }
+
         super.onCreate(state);
         CookieManager.getInstance().setAcceptCookie(true);
         logDisplayMetrics();
