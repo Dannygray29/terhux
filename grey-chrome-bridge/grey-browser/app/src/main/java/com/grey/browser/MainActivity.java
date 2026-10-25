@@ -72,6 +72,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        // Keep custom browser chrome below Android's status/notification bar.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(CHROME);
+            getWindow().setNavigationBarColor(CHROME);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            getWindow().getDecorView().setSystemUiVisibility(0);
+        }
         CookieManager.getInstance().setAcceptCookie(true);
         logDisplayMetrics();
         buildUi();
@@ -98,6 +106,12 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(CHROME);
+        // Explicitly apply the status-bar inset so tabs and toolbar never sit behind notifications.
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int topInset = insets.getSystemWindowInsetTop();
+            view.setPadding(0, topInset, 0, 0);
+            return insets;
+        });
 
         HorizontalScrollViewCompat tabsScroller = new HorizontalScrollViewCompat(this);
         tabsScroller.setHorizontalScrollBarEnabled(false);
