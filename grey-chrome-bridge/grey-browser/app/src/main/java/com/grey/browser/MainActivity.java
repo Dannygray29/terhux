@@ -514,7 +514,9 @@ public class MainActivity extends Activity {
                 JSONObject response = terhuxRequest("GET", "/next", null, token);
                 JSONObject command = response.optJSONObject("command");
                 if (command != null) runOnUiThread(() -> executeTerhuxCommand(command));
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                android.util.Log.w("GREYBrowserTerhux", "Polling failed: " + e.getClass().getSimpleName());
+            }
         }, 0, 2, TimeUnit.SECONDS);
     }
     private void executeTerhuxCommand(JSONObject c) {
