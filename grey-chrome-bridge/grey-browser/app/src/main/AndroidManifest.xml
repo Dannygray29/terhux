@@ -4,6 +4,7 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:label="GREY Browser"
+        android:icon="@drawable/ic_grey_browser"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:name=".MainActivity"
