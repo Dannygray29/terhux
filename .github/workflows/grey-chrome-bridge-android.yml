@@ -3,7 +3,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'grey-chrome-bridge/**'
+      - 'grey-chrome-bridge/android-app/**'
+      - 'grey-chrome-bridge/ACCESSIBILITY_ONLY_REDESIGN.md'
       - '.github/workflows/grey-chrome-bridge-android.yml'
   push:
     paths:
