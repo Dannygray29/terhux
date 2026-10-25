@@ -50,9 +50,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
-    private static final int INK = Color.rgb(32, 33, 36);
-    private static final int MUTED = Color.rgb(95, 99, 104);
-    private static final int SURFACE = Color.rgb(241, 243, 244);
+    private static final int INK = Color.rgb(234, 251, 255);
+    private static final int MUTED = Color.rgb(158, 172, 187);
+    private static final int SURFACE = Color.rgb(42, 45, 53);
+    private static final int CHROME = Color.rgb(17, 18, 23);
     private static final int CYAN = Color.rgb(0, 217, 255);
     private static final String HOME = "https://www.google.com";
     private final List<WebView> tabs = new ArrayList<>();
@@ -61,6 +62,7 @@ public class MainActivity extends Activity {
     private EditText address;
     private ProgressBar progress;
     private TextView tabCount;
+    private LinearLayout tabStrip;
     private TextView siteIcon;
     private WebView webView;
     private int activeTab = -1;
@@ -95,34 +97,57 @@ public class MainActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.WHITE);
+        root.setBackgroundColor(CHROME);
+
+        HorizontalScrollViewCompat tabsScroller = new HorizontalScrollViewCompat(this);
+        tabsScroller.setHorizontalScrollBarEnabled(false);
+        tabsScroller.setFillViewport(false);
+        tabsScroller.setBackgroundColor(CHROME);
+        tabStrip = new LinearLayout(this);
+        tabStrip.setOrientation(LinearLayout.HORIZONTAL);
+        tabStrip.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        tabStrip.setPadding(dp(5), dp(3), dp(5), dp(3));
+        tabsScroller.addView(tabStrip, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(38)));
+        root.addView(tabsScroller, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(38)));
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(android.view.Gravity.CENTER_VERTICAL);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
-        toolbar.setPadding(dp(6), dp(7), dp(6), dp(5));
-        toolbar.setBackgroundColor(Color.WHITE);
+        toolbar.setPadding(dp(4), dp(2), dp(4), dp(2));
+        toolbar.setBackgroundColor(CHROME);
+
+        Button home = iconButton("⌂", "Home");
+        home.setTextSize(20);
+        home.setOnClickListener(v -> navigate(HOME));
+        toolbar.addView(home, new LinearLayout.LayoutParams(dp(34), dp(40)));
 
         Button back = iconButton("‹", "Back");
+        back.setTextSize(24);
         back.setOnClickListener(v -> { if (webView != null && webView.canGoBack()) webView.goBack(); });
-        toolbar.addView(back, new LinearLayout.LayoutParams(dp(38), dp(42)));
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(30), dp(40)));
 
         Button forward = iconButton("›", "Forward");
+        forward.setTextSize(24);
         forward.setOnClickListener(v -> { if (webView != null && webView.canGoForward()) webView.goForward(); });
-        toolbar.addView(forward, new LinearLayout.LayoutParams(dp(34), dp(42)));
+        toolbar.addView(forward, new LinearLayout.LayoutParams(dp(30), dp(40)));
+
+        Button reload = iconButton("↻", "Reload");
+        reload.setTextSize(20);
+        reload.setOnClickListener(v -> { if (webView != null) webView.reload(); });
+        toolbar.addView(reload, new LinearLayout.LayoutParams(dp(32), dp(40)));
 
         LinearLayout addressPill = new LinearLayout(this);
         addressPill.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        addressPill.setPadding(dp(10), 0, dp(6), 0);
-        addressPill.setBackground(roundRect(SURFACE, dp(24)));
+        addressPill.setPadding(dp(9), 0, dp(7), 0);
+        addressPill.setBackground(roundRect(SURFACE, dp(22)));
         siteIcon = new TextView(this);
         siteIcon.setText("●");
-        siteIcon.setTextColor(MUTED);
-        siteIcon.setTextSize(12);
-        addressPill.addView(siteIcon, new LinearLayout.LayoutParams(dp(18), dp(38)));
+        siteIcon.setTextColor(CYAN);
+        siteIcon.setTextSize(10);
+        addressPill.addView(siteIcon, new LinearLayout.LayoutParams(dp(14), dp(34)));
         address = new EditText(this);
         address.setSingleLine(true);
-        address.setTextSize(14);
+        address.setTextSize(12);
         address.setTextColor(INK);
         address.setHintTextColor(MUTED);
         address.setHint("Search or type URL");
@@ -131,62 +156,33 @@ public class MainActivity extends Activity {
         address.setPadding(dp(2), 0, dp(2), 0);
         address.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
-        addressPill.addView(address, new LinearLayout.LayoutParams(0, dp(40), 1));
-        toolbar.addView(addressPill, new LinearLayout.LayoutParams(0, dp(42), 1));
+        addressPill.addView(address, new LinearLayout.LayoutParams(0, dp(36), 1));
+        Button bookmark = iconButton("☆", "Bookmark");
+        bookmark.setTextSize(17);
+        bookmark.setOnClickListener(v -> Toast.makeText(this, "Bookmark feature coming soon", Toast.LENGTH_SHORT).show());
+        addressPill.addView(bookmark, new LinearLayout.LayoutParams(dp(28), dp(36)));
+        toolbar.addView(addressPill, new LinearLayout.LayoutParams(0, dp(38), 1));
 
-        Button reload = iconButton("↻", "Reload");
-        reload.setOnClickListener(v -> { if (webView != null) webView.reload(); });
-        toolbar.addView(reload, new LinearLayout.LayoutParams(dp(38), dp(42)));
+        Button menu = iconButton("⋮", "More options");
+        menu.setTextSize(20);
+        menu.setOnClickListener(this::showMenu);
+        toolbar.addView(menu, new LinearLayout.LayoutParams(dp(30), dp(40)));
         root.addView(toolbar);
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setProgressTintList(android.content.res.ColorStateList.valueOf(CYAN));
+        progress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(35, 39, 48)));
         root.addView(progress, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(2)));
 
         pageHost = new FrameLayout(this);
+        pageHost.setBackgroundColor(Color.WHITE);
         root.addView(pageHost, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.rgb(232, 234, 237));
-        root.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-
-        LinearLayout bottom = new LinearLayout(this);
-        bottom.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        bottom.setOrientation(LinearLayout.HORIZONTAL);
-        bottom.setPadding(dp(14), dp(3), dp(14), dp(3));
-        bottom.setBackgroundColor(Color.WHITE);
-
-        Button home = iconButton("⌂", "Home");
-        home.setOnClickListener(v -> navigate(HOME));
-        bottom.addView(home, new LinearLayout.LayoutParams(0, dp(46), 1));
-
-        Button share = iconButton("↥", "Share page");
-        share.setOnClickListener(v -> shareCurrentPage());
-        bottom.addView(share, new LinearLayout.LayoutParams(0, dp(46), 1));
-
-        tabCount = new TextView(this);
-        tabCount.setText("1");
-        tabCount.setTextColor(INK);
-        tabCount.setTextSize(14);
-        tabCount.setTypeface(Typeface.DEFAULT_BOLD);
-        tabCount.setGravity(android.view.Gravity.CENTER);
-        tabCount.setBackground(roundRect(Color.WHITE, dp(5)));
-        tabCount.setOnClickListener(v -> showTabs());
-        bottom.addView(tabCount, new LinearLayout.LayoutParams(0, dp(46), 1));
-
-        Button menu = iconButton("⋮", "More options");
-        menu.setOnClickListener(this::showMenu);
-        bottom.addView(menu, new LinearLayout.LayoutParams(0, dp(46), 1));
-        LinearLayout.LayoutParams bottomParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        bottomParams.bottomMargin = dp(10);
-        root.addView(bottom, bottomParams);
 
         address.setOnFocusChangeListener((v, focused) -> {
             if (focused) address.selectAll();
             siteIcon.setText(focused ? "⌕" : "●");
-            siteIcon.setTextColor(focused ? INK : MUTED);
+            siteIcon.setTextColor(CYAN);
         });
         address.setOnEditorActionListener((v, actionId, event) -> {
             boolean enter = event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_UP;
@@ -197,6 +193,68 @@ public class MainActivity extends Activity {
             return false;
         });
         setContentView(root);
+    }
+
+    private void renderTabStrip() {
+        if (tabStrip == null) return;
+        tabStrip.removeAllViews();
+        for (int i = 0; i < tabs.size(); i++) {
+            final int index = i;
+            LinearLayout chip = new LinearLayout(this);
+            chip.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            chip.setPadding(dp(9), 0, dp(5), 0);
+            chip.setBackground(roundRect(i == activeTab ? Color.rgb(42, 45, 53) : CHROME, dp(8)));
+            TextView favicon = new TextView(this);
+            favicon.setText("●");
+            favicon.setTextColor(i == activeTab ? CYAN : MUTED);
+            favicon.setTextSize(9);
+            chip.addView(favicon, new LinearLayout.LayoutParams(dp(13), dp(30)));
+            TextView label = new TextView(this);
+            String title = tabTitles.get(i);
+            if (title == null || title.trim().isEmpty()) title = "New tab";
+            label.setText(title.length() > 13 ? title.substring(0, 12) + "…" : title);
+            label.setTextColor(INK);
+            label.setTextSize(11);
+            label.setSingleLine(true);
+            chip.addView(label, new LinearLayout.LayoutParams(dp(86), dp(30)));
+            TextView close = new TextView(this);
+            close.setText("×");
+            close.setTextSize(17);
+            close.setTextColor(MUTED);
+            close.setGravity(android.view.Gravity.CENTER);
+            close.setContentDescription("Close tab");
+            close.setOnClickListener(v -> { if (index == activeTab) closeCurrentTab(); else closeTabAt(index); });
+            chip.addView(close, new LinearLayout.LayoutParams(dp(22), dp(30)));
+            chip.setOnClickListener(v -> switchToTab(index));
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32));
+            cp.rightMargin = dp(4);
+            tabStrip.addView(chip, cp);
+        }
+        TextView plus = new TextView(this);
+        plus.setText("+");
+        plus.setTextSize(22);
+        plus.setTextColor(INK);
+        plus.setGravity(android.view.Gravity.CENTER);
+        plus.setOnClickListener(v -> addTab(HOME));
+        tabStrip.addView(plus, new LinearLayout.LayoutParams(dp(36), dp(32)));
+    }
+
+    private void closeTabAt(int index) {
+        if (index < 0 || index >= tabs.size()) return;
+        WebView removed = tabs.remove(index);
+        tabTitles.remove(index);
+        if (removed != null) { removed.stopLoading(); removed.destroy(); }
+        if (tabs.isEmpty()) { activeTab = -1; addTab(HOME); }
+        else {
+            if (index < activeTab) activeTab--;
+            else if (index == activeTab) activeTab = Math.min(index, tabs.size() - 1);
+            switchToTab(activeTab);
+        }
+        updateTabCount();
+    }
+
+    private class HorizontalScrollViewCompat extends android.widget.HorizontalScrollView {
+        HorizontalScrollViewCompat(Context context) { super(context); }
     }
 
     private Button iconButton(String symbol, String description) {
@@ -370,6 +428,7 @@ public class MainActivity extends Activity {
 
     private void updateTabCount() {
         if (tabCount != null) tabCount.setText(String.valueOf(tabs.size()));
+        renderTabStrip();
     }
 
     private void shareCurrentPage() {
