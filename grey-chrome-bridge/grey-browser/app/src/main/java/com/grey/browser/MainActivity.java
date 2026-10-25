@@ -2,6 +2,7 @@ package com.grey.browser;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -10,11 +11,15 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
+import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -50,8 +55,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        CookieManager.getInstance().setAcceptCookie(true);
         buildUi();
-        addTab(HOME);
+        String lastUrl = getPreferences(MODE_PRIVATE).getString("last_url", HOME);
+        if (lastUrl == null || !(lastUrl.startsWith("https://") || lastUrl.startsWith("http://"))) lastUrl = HOME;
+        addTab(lastUrl);
     }
 
     private void buildUi() {
@@ -212,6 +220,28 @@ public class MainActivity extends Activity {
         settings.setGeolocationEnabled(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
         view.setBackgroundColor(Color.WHITE);
+        view.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+            if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
+                Toast.makeText(MainActivity.this, "Blocked unsupported download link.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                request.setTitle(fileName);
+                request.setDescription("Downloading with GREY Browser");
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                String cookie = CookieManager.getInstance().getCookie(url);
+                if (cookie != null && !cookie.isEmpty()) request.addRequestHeader("Cookie", cookie);
+                if (userAgent != null && !userAgent.isEmpty()) request.addRequestHeader("User-Agent", userAgent);
+                DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                manager.enqueue(request);
+                Toast.makeText(MainActivity.this, "Download started: " + fileName, Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, "Could not start download.", Toast.LENGTH_LONG).show();
+            }
+        });
         view.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView current, WebResourceRequest request) {
@@ -231,7 +261,13 @@ public class MainActivity extends Activity {
             }
             @Override
             public void onPageFinished(WebView current, String url) {
-                if (current == webView) address.setText(url);
+                if (current == webView) {
+                    address.setText(url);
+                    if (url != null && (url.startsWith("https://") || url.startsWith("http://"))) {
+                        getPreferences(MODE_PRIVATE).edit().putString("last_url", url).apply();
+                    }
+                    CookieManager.getInstance().flush();
+                }
             }
         });
         view.setWebChromeClient(new WebChromeClient() {
@@ -316,6 +352,14 @@ public class MainActivity extends Activity {
         menu.getMenu().add("New tab").setOnMenuItemClickListener(item -> { addTab(HOME); return true; });
         menu.getMenu().add("Share").setOnMenuItemClickListener(item -> { shareCurrentPage(); return true; });
         menu.getMenu().add("Reload").setOnMenuItemClickListener(item -> { if (webView != null) webView.reload(); return true; });
+        menu.getMenu().add("Downloads").setOnMenuItemClickListener(item -> {
+            try {
+                startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));
+            } catch (Exception e) {
+                Toast.makeText(this, "Open the Downloads app to view files.", Toast.LENGTH_LONG).show();
+            }
+            return true;
+        });
         menu.getMenu().add("Copy link").setOnMenuItemClickListener(item -> {
             if (webView != null && webView.getUrl() != null) {
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
@@ -350,6 +394,7 @@ public class MainActivity extends Activity {
         }
         tabs.clear();
         webView = null;
+        CookieManager.getInstance().flush();
         super.onDestroy();
     }
 }
