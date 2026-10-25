@@ -38,3 +38,6 @@ Do not add `addJavascriptInterface` for arbitrary page content. A future Terhux 
 
 ## Terhux local link
 The app polls 127.0.0.1:8789 while open. Pairing begins only after the user taps Connect Terhux. Commands are allowlisted and never execute shell commands; no cookies, passwords, OTPs, form submissions, messages or purchases are exposed.
+
+## Installation note
+This Terhux-enabled build uses a separate Android package ID and displays as GREY Browser Link, so it can be installed alongside an existing GREY Browser without uninstalling it or deleting its private browser data.
