@@ -35,6 +35,17 @@ import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,6 +64,8 @@ public class MainActivity extends Activity {
     private TextView siteIcon;
     private WebView webView;
     private int activeTab = -1;
+    private ScheduledExecutorService terhuxScheduler;
+    private volatile String terhuxToken = "";
 
     @Override
     protected void onCreate(Bundle state) {
@@ -63,6 +76,8 @@ public class MainActivity extends Activity {
         String lastUrl = getPreferences(MODE_PRIVATE).getString("last_url", HOME);
         if (lastUrl == null || !(lastUrl.startsWith("https://") || lastUrl.startsWith("http://"))) lastUrl = HOME;
         addTab(lastUrl);
+        terhuxToken = getPreferences(MODE_PRIVATE).getString("terhux_token", "");
+        if (!terhuxToken.isEmpty()) startTerhuxPolling();
     }
 
     private void logDisplayMetrics() {
@@ -367,6 +382,7 @@ public class MainActivity extends Activity {
 
     private void showMenu(View anchor) {
         PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add("Connect Terhux").setOnMenuItemClickListener(item -> { connectTerhux(); return true; });
         menu.getMenu().add("New tab").setOnMenuItemClickListener(item -> { addTab(HOME); return true; });
         menu.getMenu().add("Share").setOnMenuItemClickListener(item -> { shareCurrentPage(); return true; });
         menu.getMenu().add("Reload").setOnMenuItemClickListener(item -> { if (webView != null) webView.reload(); return true; });
@@ -387,6 +403,86 @@ public class MainActivity extends Activity {
             return true;
         });
         menu.show();
+    }
+
+    private void connectTerhux() {
+        String saved = getPreferences(MODE_PRIVATE).getString("terhux_token", "");
+        final String candidate = saved.isEmpty() ? newTerhuxToken() : saved;
+        new Thread(() -> {
+            try {
+                JSONObject response = terhuxRequest("POST", "/pair", new JSONObject().put("token", candidate), candidate);
+                if (!response.optBoolean("ok")) throw new Exception("Pairing rejected");
+                runOnUiThread(() -> {
+                    terhuxToken = candidate;
+                    getPreferences(MODE_PRIVATE).edit().putString("terhux_token", candidate).apply();
+                    startTerhuxPolling();
+                    Toast.makeText(this, "Terhux connected", Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "Terhux unavailable. Keep Termux running and try again.", Toast.LENGTH_LONG).show());
+            }
+        }, "grey-terhux-pair").start();
+    }
+    private String newTerhuxToken() {
+        byte[] bytes = new byte[32]; new SecureRandom().nextBytes(bytes);
+        StringBuilder out = new StringBuilder(64);
+        for (byte b : bytes) out.append(String.format(java.util.Locale.ROOT, "%02x", b & 0xff));
+        return out.toString();
+    }
+    private JSONObject terhuxRequest(String method, String path, JSONObject body, String token) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:8789/v1/browser" + path).openConnection();
+        c.setRequestMethod(method); c.setConnectTimeout(1800); c.setReadTimeout(2500); c.setUseCaches(false);
+        if (token != null && !token.isEmpty()) c.setRequestProperty("Authorization", "Bearer " + token);
+        if (body != null) {
+            c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            try (OutputStream o = c.getOutputStream()) { o.write(body.toString().getBytes(StandardCharsets.UTF_8)); }
+        }
+        int code = c.getResponseCode();
+        InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (in != null) try (InputStream i = in) { byte[] b = new byte[2048]; int n; while ((n = i.read(b)) != -1) out.write(b, 0, n); }
+        c.disconnect();
+        if (code < 200 || code >= 300) throw new java.io.IOException("Terhux HTTP " + code);
+        String text = out.toString(StandardCharsets.UTF_8);
+        return new JSONObject(text.isEmpty() ? "{}" : text);
+    }
+    private void startTerhuxPolling() {
+        if (terhuxScheduler != null && !terhuxScheduler.isShutdown()) return;
+        terhuxScheduler = Executors.newSingleThreadScheduledExecutor();
+        terhuxScheduler.scheduleWithFixedDelay(() -> {
+            String token = terhuxToken; if (token.isEmpty()) return;
+            try {
+                JSONObject response = terhuxRequest("GET", "/next", null, token);
+                JSONObject command = response.optJSONObject("command");
+                if (command != null) runOnUiThread(() -> executeTerhuxCommand(command));
+            } catch (Exception ignored) {}
+        }, 0, 2, TimeUnit.SECONDS);
+    }
+    private void executeTerhuxCommand(JSONObject c) {
+        String id = c.optString("id", ""), action = c.optString("action", "");
+        try {
+            switch (action) {
+                case "navigate": {
+                    String target = c.optString("url", ""); Uri u = Uri.parse(target); String scheme = u.getScheme();
+                    if (scheme == null || u.getHost() == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+                        sendTerhuxResult(id, false, "Only HTTP/HTTPS navigation is allowed.");
+                    } else { navigate(target); sendTerhuxResult(id, true, "Navigation requested: " + target); }
+                    return;
+                }
+                case "back": if (webView != null && webView.canGoBack()) webView.goBack(); sendTerhuxResult(id, true, "Back handled"); return;
+                case "forward": if (webView != null && webView.canGoForward()) webView.goForward(); sendTerhuxResult(id, true, "Forward handled"); return;
+                case "reload": if (webView != null) webView.reload(); sendTerhuxResult(id, true, "Reload requested"); return;
+                case "status": sendTerhuxResult(id, true, webView == null ? "No active tab" : String.valueOf(webView.getUrl())); return;
+                default: sendTerhuxResult(id, false, "Unsupported browser action");
+            }
+        } catch (Exception e) { sendTerhuxResult(id, false, "Browser action failed"); }
+    }
+    private void sendTerhuxResult(String id, boolean success, String result) {
+        if (id == null || id.isEmpty() || terhuxToken.isEmpty()) return;
+        new Thread(() -> {
+            try { terhuxRequest("POST", "/result", new JSONObject().put("id", id).put("success", success).put("result", result), terhuxToken); }
+            catch (Exception ignored) {}
+        }).start();
     }
 
     private int dp(int value) {
@@ -410,6 +506,7 @@ public class MainActivity extends Activity {
                 tab.destroy();
             }
         }
+        if (terhuxScheduler != null) terhuxScheduler.shutdownNow();
         tabs.clear();
         webView = null;
         CookieManager.getInstance().flush();

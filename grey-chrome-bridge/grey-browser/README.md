@@ -19,8 +19,8 @@ This first prototype uses Android System WebView, which is Chromium-based and ma
 
 ## Not yet implemented
 
-- Terhux agent connection / automatic pairing.
-- DOM automation commands exposed to Terhux.
+- Terhux local command link: use More options → Connect Terhux while Termux's localhost bridge is running.
+- Allowlisted navigation, back, forward, reload and current-URL status commands.
 - Download manager and download destination controls.
 - Persistent cross-device profile sync.
 - Verified compatibility with CapCut or any specific site.
@@ -35,3 +35,6 @@ GitHub Actions workflow: **Build GREY Browser APK**. Run it manually or push cha
 ## Security notes
 
 Do not add `addJavascriptInterface` for arbitrary page content. A future Terhux controller should use a narrow, authenticated, app-owned command boundary and must never allow page content to execute shell commands. Cookies, passwords, and browser profile data must not be copied into GitHub.
+
+## Terhux local link
+The app polls 127.0.0.1:8789 while open. Pairing begins only after the user taps Connect Terhux. Commands are allowlisted and never execute shell commands; no cookies, passwords, OTPs, form submissions, messages or purchases are exposed.
