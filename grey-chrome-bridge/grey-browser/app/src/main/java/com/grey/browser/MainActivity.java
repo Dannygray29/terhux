@@ -15,6 +15,8 @@ import android.os.Environment;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
@@ -56,10 +58,23 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         CookieManager.getInstance().setAcceptCookie(true);
+        logDisplayMetrics();
         buildUi();
         String lastUrl = getPreferences(MODE_PRIVATE).getString("last_url", HOME);
         if (lastUrl == null || !(lastUrl.startsWith("https://") || lastUrl.startsWith("http://"))) lastUrl = HOME;
         addTab(lastUrl);
+    }
+
+    private void logDisplayMetrics() {
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        int widthPx = dm.widthPixels;
+        int heightPx = dm.heightPixels;
+        float density = dm.density;
+        android.graphics.Rect visible = new android.graphics.Rect();
+        getWindow().getDecorView().getWindowVisibleDisplayFrame(visible);
+        Log.i("GREYBrowserDisplay", "screenPx=" + widthPx + "x" + heightPx
+                + ", screenDp=" + Math.round(widthPx / density) + "x" + Math.round(heightPx / density)
+                + ", density=" + density + ", visibleFrame=" + visible.flattenToString());
     }
 
     private void buildUi() {
@@ -148,7 +163,10 @@ public class MainActivity extends Activity {
         Button menu = iconButton("⋮", "More options");
         menu.setOnClickListener(this::showMenu);
         bottom.addView(menu, new LinearLayout.LayoutParams(0, dp(46), 1));
-        root.addView(bottom);
+        LinearLayout.LayoutParams bottomParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        bottomParams.bottomMargin = dp(10);
+        root.addView(bottom, bottomParams);
 
         address.setOnFocusChangeListener((v, focused) -> {
             if (focused) address.selectAll();
