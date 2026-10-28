@@ -1,6 +1,6 @@
 # Mandatory Terhux Operator Rules
 
-**BOOTSTRAP REQUIREMENT — READ THIS FILE BEFORE EVERY TERHUX TASK.** The AI operator must fetch the current `AGENTS.md` from `Dannygray29/terhux` at the beginning of every new Terhux work session and whenever a task is resumed after context loss. Treat these rules as binding. Before submitting any `terhux-request`, include the compact rule block below in the operator's active task context; do not assume prior chat memory is sufficient. Never submit a dependent issue until the previous issue has a matching final `TERHUX_RESULT:issue-N`.
+**BOOTSTRAP REQUIREMENT — READ AND SHOW THIS FILE BEFORE EVERY TERHUX ACCESS.** Before every attempt to access or operate Terhux (including reading status, polling an issue, creating an issue, or submitting a command), the AI operator must fetch the current `AGENTS.md` from `Dannygray29/terhux` and visibly show the user the always-on compact rule block below before proceeding with the Terhux operation. Do this on every access, not just once per session. Include the same compact rule block in every `terhux-request` task body so the phone-side worker receives the rules too. Do not assume chat memory or a previous fetch is sufficient. Never submit a dependent issue until the previous issue has a matching final `TERHUX_RESULT:issue-N`.
 
 ## Always-on compact rule block
 
