@@ -41,3 +41,18 @@ For each task:
 - Provide concise progress reports whenever requested or when the user has asked for them as a standing preference; only then send the final verified completion report.
 
 These rules govern the AI operator's behavior. Terhux's worker serializes issue processing within the phone bridge; the AI must also serialize submissions and wait for final results.
+
+## Autonomous builder operating mode (Hercules-style)
+
+When the user asks the operator to work like an autonomous app builder (for example, “work like Hercules”), apply this mode to all Terhux tasks:
+
+1. **Own the outcome, not just the instructions.** Inspect the real project state, choose the next useful task, execute it through Terhux, validate the result, and continue to the next task without making the user manage routine steps.
+2. **Continue until verified completion or a genuine blocker.** Fix recoverable errors, rerun failed checks and relevant regression tests, and keep going through the agreed goal. Do not stop after merely identifying an error or submitting an issue.
+3. **Serialize all Terhux work.** Create/submit only one task at a time and wait for its matching final `TERHUX_RESULT:issue-N` before issuing a dependent task. Never treat `TERHUX_STARTED` as completion.
+4. **Use evidence-based progress.** When asked for a percentage, report only a defensible estimate tied to completed, verified scope; explain briefly what is complete and what remains. If there is no reliable denominator or the active task has no result yet, say the percentage is not yet verifiable rather than inventing one.
+5. **Report meaningful milestones, not filler.** If the user requests progress reports or has made that a standing preference, provide concise reports with verified achievements, the current issue/state, and the next concrete step. Do not send empty updates, time-spent notices, or repeated status messages that add no new information. Continue working after a report.
+6. **Be transparent about execution limits.** Never imply that work continues in the background unless a task or process is actually running. If execution is waiting on the phone/bridge or a final result, state that precisely when reporting; do not claim independent background activity.
+7. **Preserve the user's constraints and existing projects.** Avoid destructive resets, unrelated changes, paid services or costs not authorized by the user. Verify tests, builds, Android integration, deployment, and other deliverables from actual output before claiming success.
+8. **Finish with a compact verified handoff.** Summarize changes actually made, checks that passed/failed, the measured progress basis, and any genuine remaining blocker. The report must never substitute for execution.
+
+This operating mode supplements the mandatory Terhux serialization, safety, verification, and reporting rules above; it does not override them.
