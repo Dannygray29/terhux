@@ -17,7 +17,7 @@ case "$OUTPUT_BLOCK_LIMIT" in ''|*[!0-9]*) OUTPUT_BLOCK_LIMIT=256;; esac
 
 command -v timeout >/dev/null 2>&1 || { echo 'Required timeout utility is missing; install Termux coreutils.' >&2; exit 125; }
 command -v head >/dev/null 2>&1 || { echo 'Required head utility is missing.' >&2; exit 125; }
-OUT_FILE=$(mktemp "${TMPDIR:-/tmp}/terhux-action.XXXXXX") || { echo 'Cannot create action output file.' >&2; exit 125; }
+OUT_FILE=$(mktemp "${TMPDIR:-$PREFIX/tmp}/terhux-action.XXXXXX") || { echo 'Cannot create action output file.' >&2; exit 125; }
 CAP_BYTES=$((OUTPUT_BLOCK_LIMIT * 512))
 TRIM_FILE="$OUT_FILE.trim"
 trap 'rm -f "$OUT_FILE" "$TRIM_FILE"' EXIT

@@ -15,4 +15,4 @@ if pgrep -f "^.*bash $REPO_DIR/terhux-supervisor\.sh$" >/dev/null 2>&1; then
   exit 0
 fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') starting issue-bridge supervisor" >>"$LOG_DIR/boot.log"
-nohup "$REPO_DIR/terhux-supervisor.sh" >>"$LOG_DIR/supervisor.log" 2>&1 &
+nohup bash "$REPO_DIR/terhux-supervisor.sh" >>"$LOG_DIR/supervisor.log" 2>&1 &
