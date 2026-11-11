@@ -8,5 +8,5 @@ if pgrep -f "$REPO_DIR/terhux-supervisor.sh" >/dev/null 2>&1; then
   echo "Terhux supervisor is already running."
   exit 0
 fi
-nohup "$REPO_DIR/terhux-supervisor.sh" >>"$LOG_DIR/supervisor.log" 2>&1 &
+nohup bash "$REPO_DIR/terhux-supervisor.sh" >>"$LOG_DIR/supervisor.log" 2>&1 &
 echo "Started Terhux issue bridge."

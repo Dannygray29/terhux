@@ -1,6 +1,6 @@
 Terhux host: Android phone running Termux
 Active transport: GitHub Issues mailbox (`terhux-request` label)
-Request format: raw Bash command/script in a `[Terhux]` issue body
+Request format: `TERHUX-SHELL-V1` on the first line, then the Bash command, in a `[Terhux]` issue body
 Reply: `TERHUX_STARTED` and `TERHUX_RESULT` issue comments
 Job state: local under ~/.local/state/terhux; no job commits or pushes
 Code updates: explicit git fetch + fast-forward-only merge; no git pull
